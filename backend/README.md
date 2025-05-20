@@ -9,5 +9,5 @@ Backend u obliku Web API za potrebe aplikacije.
 ## Installation
 ```bash
 git clone https://github.com/tinajuresko/dentmed.git
-cd dentmed
+cd dentmed/backend/DENTMED_API/DENTMED_API
 dotnet build
