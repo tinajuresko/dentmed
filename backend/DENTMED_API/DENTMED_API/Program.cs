@@ -15,7 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<PacijentService>();
-
+builder.Services.AddScoped<TerminServices>();
 
 
 var app = builder.Build();

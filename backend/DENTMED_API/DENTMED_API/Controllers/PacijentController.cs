@@ -7,7 +7,7 @@ using System;
 
 namespace DENTMED_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/pacijent")]
     [ApiController]
     public class PacijentController : Controller
     {
@@ -55,6 +55,22 @@ namespace DENTMED_API.Controllers
             }
 
             return Ok(pacijent);
+        }
+
+        //Brisanje pacijenta iz baze 
+        [HttpDelete("{id_pacijent}")]
+        public async Task<IActionResult> DeletePatient(int id_pacijent)
+        {
+            var pacijent = await _context.Pacijent.FindAsync(id_pacijent);
+            if (pacijent == null)
+            {
+                return NotFound("Pacijent nije pronađen.");
+            }
+
+            _context.Pacijent.Remove(pacijent);
+            await _context.SaveChangesAsync();
+
+            return Ok($"Pacijent s id_pacijent {id_pacijent} uspješno obrisan.");
         }
     }
 }
