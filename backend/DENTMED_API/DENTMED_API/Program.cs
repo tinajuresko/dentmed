@@ -16,6 +16,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<PacijentService>();
 builder.Services.AddScoped<TerminServices>();
+builder.Services.AddScoped<DokumentacijaService>();
+builder.Services.AddScoped<RadnoVrijemeService>();
 
 
 var app = builder.Build();

@@ -22,21 +22,51 @@ namespace DENTMED_API.Controllers
         [HttpPost]
         public async Task<IActionResult> AddNewTermin([FromBody] Termin newTermin)
         {
-            var exists = await _context.Pacijent.AnyAsync(p => p.id_pacijent == newTermin.id_pacijent);
+            var postojeciPacijent = await _context.Pacijent.AnyAsync(p => p.id_pacijent == newTermin.id_pacijent);
 
-            if (!exists) return BadRequest("Invalid Pacijent ID.");
+            if (!postojeciPacijent) return BadRequest("Neispravni id pacijenta.");
 
             if (newTermin == null)
             {
                 return BadRequest("Neispravni podaci o terminu.");
             }
 
-            _context.Entry(newTermin).Reference(t => t.Pacijent).IsModified = false;
+            newTermin.id_termin = await _terminservices.GetNextIdTermin();
 
             _context.Termin.Add(newTermin);
             await _context.SaveChangesAsync();
 
             return Ok();
+        }
+
+        //izmjena postojeceg termina
+        [HttpPut("{id_termin}")]
+        public async Task<IActionResult> UpdateTermin(int id_termin, [FromBody] Termin updatedTermin)
+        {
+           
+            var odabraniTermin = await _context.Termin.FindAsync(id_termin);
+
+            if (odabraniTermin == null)
+            {
+                return NotFound("Termin nije pronađen.");
+            }
+
+            // provjera pacijenta FK
+            var postojeciPacijent = await _context.Pacijent.AnyAsync(p => p.id_pacijent == updatedTermin.id_pacijent);
+
+            if (!postojeciPacijent) return BadRequest("Neispravni id pacijenta.");
+
+            odabraniTermin.id_lijecnik = updatedTermin.id_lijecnik;
+            odabraniTermin.id_pacijent = updatedTermin.id_pacijent;
+            odabraniTermin.id_prostor = updatedTermin.id_prostor;
+            odabraniTermin.pocetak = updatedTermin.pocetak;
+            odabraniTermin.kraj = updatedTermin.kraj;
+            odabraniTermin.id_usluga = updatedTermin.id_usluga;
+
+            _context.Termin.Update(odabraniTermin);
+            await _context.SaveChangesAsync();
+
+            return Ok(odabraniTermin);
         }
 
         //vraca sve slobodne termine za zadani datum i smjenu i odredeno trajanje

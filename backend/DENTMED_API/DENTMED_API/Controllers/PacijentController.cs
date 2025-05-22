@@ -72,5 +72,30 @@ namespace DENTMED_API.Controllers
 
             return Ok($"Pacijent s id_pacijent {id_pacijent} uspješno obrisan.");
         }
+
+        //pretraga pacijenata
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchPacijent([FromQuery] string pretraga)
+        {
+            if (string.IsNullOrEmpty(pretraga))
+            {
+                return BadRequest("Pretraga ne može biti prazna.");
+            }
+
+            var pacijenti = await _context.Pacijent
+                .Where(p => p.ime.ToLower().Contains(pretraga.ToLower()) ||
+                            p.prezime.ToLower().Contains(pretraga.ToLower()) ||
+                            p.oib.Contains(pretraga) ||
+                            p.id_pacijent.ToString().Contains(pretraga))
+                .ToListAsync();
+
+            if (!pacijenti.Any())
+            {
+                return NotFound("Nema rezultata pretrage.");
+            }
+
+            return Ok(pacijenti);
+        }
+
     }
 }

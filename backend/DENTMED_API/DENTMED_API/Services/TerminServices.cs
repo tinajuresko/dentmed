@@ -42,5 +42,14 @@ namespace DENTMED_API.Services
 
             return slobodni_termini;
         }
+
+        public async Task<int> GetNextIdTermin()
+        {
+            var lastTermin = await _context.Termin
+                .OrderByDescending(p => p.id_termin)
+                .FirstOrDefaultAsync();
+
+            return lastTermin != null ? lastTermin.id_termin + 1 : 100000; 
+        }
     }
 }

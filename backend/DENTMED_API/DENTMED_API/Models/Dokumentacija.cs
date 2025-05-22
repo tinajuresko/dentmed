@@ -16,7 +16,7 @@ namespace DENTMED_API.Models
         public int id_lijecnik { get; set; }
 
         [JsonIgnore]
-        public Pacijent Pacijent { get; set; }
+        public Pacijent? Pacijent { get; set; }
 
     }
 }

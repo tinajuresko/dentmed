@@ -17,7 +17,7 @@ namespace DENTMED_API.Models
         public int id_usluga { get; set; }
 
         [JsonIgnore] //ne salje cijeli Pacijent objekt u API requestu
-        public Pacijent Pacijent { get; set; }
+        public Pacijent? Pacijent { get; set; }
 
     }
 }
