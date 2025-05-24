@@ -5,7 +5,7 @@ import { Prostor } from "../models/Prostor";
 
 export const prostorController = {
   getAll: async (): Promise<Prostor[]> => {
-    const response = await axios.get<ProstorResponse>(prostorRoutes.getAll());
-    return response.data.dokumentacije;
-  }
+    const response = await axios.get<Prostor[]>(prostorRoutes.getAll());
+    return response.data;
+  },
 };

@@ -12,10 +12,12 @@ export const zaposlenikController = {
 
   update: (zaposlenik) => {
     return new Promise((resolve, reject) => {
-      const index = mockZaposlenici.findIndex(z => z.id_zaposlenik === zaposlenik.id_zaposlenik);
+      const index = mockZaposlenici.findIndex(
+        (z) => z.id_zaposlenik === zaposlenik.id_zaposlenik
+      );
       if (index === -1) return reject("Zaposlenik nije pronađen.");
       mockZaposlenici[index] = { ...zaposlenik };
       resolve(createZaposlenik(mockZaposlenici[index]));
     });
-  }
+  },
 };

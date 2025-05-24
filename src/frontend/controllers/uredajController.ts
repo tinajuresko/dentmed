@@ -5,7 +5,7 @@ import { Uredaj } from "../models/Uredaj";
 
 export const uredajController = {
   getAll: async (): Promise<Uredaj[]> => {
-    const response = await axios.get<UredajResponse>(uredajRoutes.getAll());
-    return response.data.dokumentacije;
-  }
+    const response = await axios.get<Uredaj[]>(uredajRoutes.getAll());
+    return response.data;
+  },
 };

@@ -1,13 +1,14 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import './App.css'
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import "./App.css";
 
-import Homepage from './frontend/pages/Homepage'
-import Navbar from './frontend/components/Navbar'
-import PacijentiPage from './frontend/pages/PacijentiPage'
-import RadnoVrijemePage from './frontend/pages/RadnoVrijemePage'
-import ResursiPage from './frontend/pages/ResursiPage'
-import TerminiPage from './frontend/pages/TerminiPage'
+import Homepage from "./frontend/pages/Homepage";
+import Navbar from "./frontend/components/Navbar";
+import PacijentiPage from "./frontend/pages/PacijentiPage";
+import TerminiPage from "./frontend/pages/TerminiPage";
+import ResursiPage from "./frontend/pages/ResursiPage";
+import RadnoVrijemePage from "./frontend/pages/RadnoVrijemePage";
+import Footer from "./frontend/components/Footer";
 
 const App = () => {
   return (
@@ -20,8 +21,9 @@ const App = () => {
         <Route path="/resursi" element={<ResursiPage />} />
         <Route path="/radno-vrijeme" element={<RadnoVrijemePage />} />
       </Routes>
+      <Footer />
     </Router>
   );
 };
 
-export default App
+export default App;

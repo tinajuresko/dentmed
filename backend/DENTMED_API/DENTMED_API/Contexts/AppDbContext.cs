@@ -17,6 +17,9 @@ namespace DENTMED_API.Contexts
         public DbSet<Resurs> Resurs { get; set; }
         public DbSet<Uredaj> Uredaj { get; set; }
         public DbSet<Oprema> Oprema { get; set; }
+        public DbSet<Uloga> Uloga { get; set; }
+        public DbSet<Usluga> Usluga { get; set; }
+        public DbSet<Zaposlenik> Zaposlenik { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,8 +68,25 @@ namespace DENTMED_API.Contexts
                 .HasForeignKey(p => p.id_oprema)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Uloga>()
+                .ToTable("uloga");
 
+            modelBuilder.Entity<Usluga>()
+               .ToTable("usluga");
 
+            modelBuilder.Entity<Zaposlenik>()
+                .ToTable("zaposlenik")
+                .HasOne(zap => zap.Uloga)
+                .WithMany()
+                .HasForeignKey(zap => zap.id_uloga)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Zaposlenik>()
+               .ToTable("zaposlenik")
+               .HasOne(zap => zap.RadnoVrijeme)
+               .WithMany()
+               .HasForeignKey(zap => zap.id_radno_vrijeme)
+               .OnDelete(DeleteBehavior.Cascade);
         }
 
 

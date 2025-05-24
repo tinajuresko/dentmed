@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { terminController } from "../controllers/terminController";
 import { lijecnikController } from "../controllers/lijecnikControllers.js";
-import FilterInput from "../components/FilterInput";  
+import FilterInput from "../components/FilterInput";
 
 export default function TerminiPage() {
   const [lijecnici, setLijecnici] = useState([]);
@@ -16,7 +16,7 @@ export default function TerminiPage() {
     trajanje: "",
     napomena: "",
     id_pacijent: null,
-    id_lijecnik: "", 
+    id_lijecnik: "",
   });
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function TerminiPage() {
     setLoading(true);
     const data = await terminController.getAll();
     setTermini(data);
-    setFilteredTermini(data); 
+    setFilteredTermini(data);
     setLoading(false);
   };
 
@@ -38,14 +38,26 @@ export default function TerminiPage() {
   };
 
   const handleAdd = async () => {
-    if (!newTermin.datum || !newTermin.vrijeme || !newTermin.trajanje || !newTermin.id_lijecnik) {
+    if (
+      !newTermin.datum ||
+      !newTermin.vrijeme ||
+      !newTermin.trajanje ||
+      !newTermin.id_lijecnik
+    ) {
       alert("Molimo popunite sva obavezna polja.");
       return;
-    }    
+    }
 
     try {
       await terminController.create(newTermin);
-      setNewTermin({ datum: "", vrijeme: "", trajanje: "", napomena: "", id_pacijent: null, id_lijecnik: "" });
+      setNewTermin({
+        datum: "",
+        vrijeme: "",
+        trajanje: "",
+        napomena: "",
+        id_pacijent: null,
+        id_lijecnik: "",
+      });
       loadTermini();
     } catch (err) {
       alert(err);
@@ -53,26 +65,42 @@ export default function TerminiPage() {
   };
 
   const handleUpdate = async () => {
-    if (!newTermin.datum || !newTermin.vrijeme || !newTermin.trajanje || !newTermin.id_lijecnik) {
+    if (
+      !newTermin.datum ||
+      !newTermin.vrijeme ||
+      !newTermin.trajanje ||
+      !newTermin.id_lijecnik
+    ) {
       alert("Molimo popunite sva obavezna polja.");
       return;
     }
-  
+
     try {
       await terminController.update(newTermin);
       setEditingTermin(null);
-      setNewTermin({ datum: "", vrijeme: "", trajanje: "", napomena: "", id_pacijent: null, id_lijecnik: "" });
+      setNewTermin({
+        datum: "",
+        vrijeme: "",
+        trajanje: "",
+        napomena: "",
+        id_pacijent: null,
+        id_lijecnik: "",
+      });
       loadTermini();
     } catch (err) {
       alert(err);
-    }    
+    }
   };
 
   const terminiZaFilter = termini.map((termin) => {
-    const lijecnik = lijecnici.find((l) => l.id_lijecnik === termin.id_lijecnik);
+    const lijecnik = lijecnici.find(
+      (l) => l.id_lijecnik === termin.id_lijecnik
+    );
     return {
       ...termin,
-      lijecnikIme: lijecnik ? `${lijecnik.ime} ${lijecnik.prezime}`.toLowerCase() : "",
+      lijecnikIme: lijecnik
+        ? `${lijecnik.ime} ${lijecnik.prezime}`.toLowerCase()
+        : "",
     };
   });
 
@@ -80,23 +108,33 @@ export default function TerminiPage() {
     if (editingTermin) {
       setNewTermin({ ...editingTermin });
     }
-  }, [editingTermin]);  
+  }, [editingTermin]);
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Termini</h2>
+      <h1>🗓️ Termini</h1>
 
       {loading ? (
         <p>Učitavanje termina...</p>
       ) : (
         <>
           {/* Filter po imenu liječnika */}
-          <FilterInput data={terminiZaFilter} onFilter={(filtered) => {
-            const filteredIds = new Set(filtered.map((f) => f.id_termin));
-            setFilteredTermini(termini.filter(t => filteredIds.has(t.id_termin)));
-          }} fields={['lijecnikIme']} />
+          <FilterInput
+            data={terminiZaFilter}
+            onFilter={(filtered) => {
+              const filteredIds = new Set(filtered.map((f) => f.id_termin));
+              setFilteredTermini(
+                termini.filter((t) => filteredIds.has(t.id_termin))
+              );
+            }}
+            fields={["lijecnikIme"]}
+          />
 
-          <table border="1" cellPadding="8" style={{ width: "100%", marginBottom: 20 }}>
+          <table
+            border="1"
+            cellPadding="8"
+            style={{ width: "100%", marginBottom: 20 }}
+          >
             <thead>
               <tr>
                 <th>Datum</th>
@@ -115,17 +153,29 @@ export default function TerminiPage() {
                   <td>{termin.vrijeme}</td>
                   <td>{termin.trajanje}</td>
                   <td>{termin.napomena}</td>
-                  <td>{termin.id_pacijent ? termin.id_pacijent : "Slobodno"}</td>
                   <td>
-                    {
-                      lijecnici.find((l) => l.id_lijecnik === termin.id_lijecnik)
-                        ? `${lijecnici.find((l) => l.id_lijecnik === termin.id_lijecnik).ime} ${lijecnici.find((l) => l.id_lijecnik === termin.id_lijecnik).prezime}`
-                        : "-"
-                    }
+                    {termin.id_pacijent ? termin.id_pacijent : "Slobodno"}
                   </td>
                   <td>
-                    <button onClick={() => setEditingTermin(termin)}>Uredi</button>
-                    <button onClick={() => handleDelete(termin.id_termin)}>Obriši</button>
+                    {lijecnici.find((l) => l.id_lijecnik === termin.id_lijecnik)
+                      ? `${
+                          lijecnici.find(
+                            (l) => l.id_lijecnik === termin.id_lijecnik
+                          ).ime
+                        } ${
+                          lijecnici.find(
+                            (l) => l.id_lijecnik === termin.id_lijecnik
+                          ).prezime
+                        }`
+                      : "-"}
+                  </td>
+                  <td>
+                    <button onClick={() => setEditingTermin(termin)}>
+                      Uredi
+                    </button>
+                    <button onClick={() => handleDelete(termin.id_termin)}>
+                      Obriši
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -142,37 +192,53 @@ export default function TerminiPage() {
             <input
               type="date"
               value={newTermin.datum}
-              onChange={(e) => setNewTermin({ ...newTermin, datum: e.target.value })}
+              onChange={(e) =>
+                setNewTermin({ ...newTermin, datum: e.target.value })
+              }
             />
             <input
               type="time"
               value={newTermin.vrijeme}
-              onChange={(e) => setNewTermin({ ...newTermin, vrijeme: e.target.value })}
+              onChange={(e) =>
+                setNewTermin({ ...newTermin, vrijeme: e.target.value })
+              }
             />
             <input
               type="text"
               placeholder="Trajanje"
               value={newTermin.trajanje}
-              onChange={(e) => setNewTermin({ ...newTermin, trajanje: e.target.value })}
+              onChange={(e) =>
+                setNewTermin({ ...newTermin, trajanje: e.target.value })
+              }
             />
             <input
               type="number"
               placeholder="ID pacijenta"
               value={newTermin.id_pacijent || ""}
               onChange={(e) =>
-                setNewTermin({ ...newTermin, id_pacijent: e.target.value ? parseInt(e.target.value) : null })
+                setNewTermin({
+                  ...newTermin,
+                  id_pacijent: e.target.value ? parseInt(e.target.value) : null,
+                })
               }
             />
             <input
               type="text"
               placeholder="Napomena"
               value={newTermin.napomena}
-              onChange={(e) => setNewTermin({ ...newTermin, napomena: e.target.value })}
+              onChange={(e) =>
+                setNewTermin({ ...newTermin, napomena: e.target.value })
+              }
             />
 
             <select
               value={newTermin.id_lijecnik}
-              onChange={(e) => setNewTermin({ ...newTermin, id_lijecnik: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setNewTermin({
+                  ...newTermin,
+                  id_lijecnik: parseInt(e.target.value),
+                })
+              }
             >
               <option value="">Odaberi liječnika</option>
               {lijecnici.map((l) => (
@@ -185,10 +251,19 @@ export default function TerminiPage() {
             {editingTermin ? (
               <>
                 <button onClick={handleUpdate}>Spremi izmjene</button>
-                <button onClick={() => {
-                  setEditingTermin(null);
-                  setNewTermin({ datum: "", vrijeme: "", trajanje: "", napomena: "", id_pacijent: null, id_lijecnik: "" });
-                }}>
+                <button
+                  onClick={() => {
+                    setEditingTermin(null);
+                    setNewTermin({
+                      datum: "",
+                      vrijeme: "",
+                      trajanje: "",
+                      napomena: "",
+                      id_pacijent: null,
+                      id_lijecnik: "",
+                    });
+                  }}
+                >
                   Odustani
                 </button>
               </>

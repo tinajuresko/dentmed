@@ -19,8 +19,21 @@ builder.Services.AddScoped<TerminServices>();
 builder.Services.AddScoped<DokumentacijaService>();
 builder.Services.AddScoped<RadnoVrijemeService>();
 
+//CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 
 var app = builder.Build();
+
+app.UseCors("AllowReactApp");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

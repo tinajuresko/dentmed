@@ -22,7 +22,7 @@ namespace DENTMED_API.Controllers
         [HttpGet]
         public async Task<ActionResult<RadnoVrijeme>> GetRadnoVrijeme()
         {
-            var smjene = await _context.RadnoVrijeme.ToListAsync();
+            var smjene = await _context.RadnoVrijeme.OrderBy(smj => smj.pocetak).ToListAsync();
 
             if (smjene == null)
             {
@@ -59,6 +59,13 @@ namespace DENTMED_API.Controllers
             {
                 return NotFound("Smjena nije pronađena.");
             }
+
+            await _context.Zaposlenik
+                .Where(z => z.id_radno_vrijeme == id_smjena)
+                .ForEachAsync(z => z.id_radno_vrijeme = null);
+
+            await _context.SaveChangesAsync();
+
 
             _context.RadnoVrijeme.Remove(smjena);
             await _context.SaveChangesAsync();

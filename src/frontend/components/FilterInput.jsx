@@ -11,10 +11,7 @@ export default function FilterInput({ data, onFilter, fields = [] }) {
       const keys = fields.length ? fields : Object.keys(item);
       return keys.some((k) => {
         const val = item[k];
-        return (
-          typeof val === "string" &&
-          val.toLowerCase().includes(q)
-        );
+        return typeof val === "string" && val.toLowerCase().includes(q);
       });
     });
 
@@ -27,7 +24,7 @@ export default function FilterInput({ data, onFilter, fields = [] }) {
       placeholder="Filtriraj..."
       value={query}
       onChange={handleChange}
-      style={{ marginBottom: 12, padding: 6, width: "100%" }}
+      style={{ marginBottom: 12, padding: 6, width: "50%" }}
     />
   );
 }
