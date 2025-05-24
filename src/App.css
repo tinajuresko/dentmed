@@ -72,13 +72,23 @@ td{
 }
 
 input{
+  height: 20px;
   padding: 5px;
+  min-width: 200px;
 }
 
 select{
+  width: 210px;
+  height: 33px;
   padding: 5px;
+  
 }
+
 
 textarea{
   min-width: 80%;
+}
+
+.termin_row:hover{
+  background-color: whitesmoke;
 }

@@ -11,11 +11,6 @@ export default function ResursiPage() {
   const [oprema, setOprema] = useState<Oprema[]>([]);
   const [prostori, setProstori] = useState<Prostor[]>([]);
   const [uredaji, setUredaji] = useState<Uredaj[]>([]);
-
-  const [filtriranaOprema, setFiltriranaOprema] = useState<Oprema[]>([]);
-  const [filtriraniProstori, setFiltriraniProstori] = useState<Prostor[]>([]);
-  const [filtriraniUredaji, setFiltriraniUredaji] = useState<Uredaj[]>([]);
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,31 +20,31 @@ export default function ResursiPage() {
       const prostoriData = await prostorController.getAll();
       const uredajiData = await uredajController.getAll();
       setOprema(opremaData);
-      setFiltriranaOprema(opremaData);
       setProstori(prostoriData);
-      setFiltriraniProstori(prostoriData);
       setUredaji(uredajiData);
-      setFiltriraniUredaji(uredajiData);
       setLoading(false);
     }
     fetchData();
   }, []);
 
-  const filterOprema = (filtered) => setFiltriranaOprema(filtered);
-  const filterProstori = (filtered) => setFiltriraniProstori(filtered);
-  const filterUredaji = (filtered) => setFiltriraniUredaji(filtered);
-
   if (loading) return <div>Učitavanje resursa...</div>;
 
   return (
     <div>
-      <h1>⚕️ Resursi</h1>
+      <h2>⚕️ Resursi</h2>
 
       {/* Oprema */}
-      <section style={{ marginBottom: 40 }}>
+      <section
+        style={{
+          marginBottom: 40,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
         <h2>Oprema</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {filtriranaOprema.map((o, ind) => (
+        <ul style={{ listStyle: "none", padding: 0, width: "70%" }}>
+          {oprema.map((o, ind) => (
             <li
               key={o.id_oprema}
               style={{
@@ -98,10 +93,17 @@ export default function ResursiPage() {
       </section>
 
       {/* Prostori */}
-      <section style={{ marginBottom: 40 }}>
+      <section
+        style={{
+          marginBottom: 40,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
         <h2>Prostori</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {filtriraniProstori.map((p, ind) => (
+        <ul style={{ listStyle: "none", padding: 0, width: "70%" }}>
+          {prostori.map((p, ind) => (
             <li
               key={p.id_prostor}
               style={{
@@ -147,10 +149,17 @@ export default function ResursiPage() {
       </section>
 
       {/* Uređaji */}
-      <section>
+      <section
+        style={{
+          marginBottom: 40,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
         <h2>Uređaji</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {filtriraniUredaji.map((u, ind) => (
+        <ul style={{ listStyle: "none", padding: 0, width: "70%" }}>
+          {uredaji.map((u, ind) => (
             <li
               key={u.id_uredaj}
               style={{

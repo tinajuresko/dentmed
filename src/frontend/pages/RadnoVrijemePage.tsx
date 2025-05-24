@@ -62,7 +62,7 @@ export default function RadnoVrijemePage() {
         gap: "20px",
       }}
     >
-      <h1>⌛ Radna vremena (smjene)</h1>
+      <h2>⌛ Radna vremena (smjene)</h2>
       <table cellPadding="6">
         <thead>
           <tr>
@@ -110,7 +110,7 @@ export default function RadnoVrijemePage() {
             justifyContent: "center",
             alignItems: "center",
             gap: "20px",
-            padding: "20px 0px",
+            padding: "20px 10px",
           }}
         >
           <p>od</p>
@@ -137,7 +137,6 @@ export default function RadnoVrijemePage() {
       <table cellPadding="6" style={{ border: "1px solid black" }}>
         <thead>
           <tr>
-            <th></th>
             <th>Zaposlenik</th>
             <th>Trenutna smjena</th>
             <th>Dodijeli novu smjenu</th>
@@ -146,9 +145,6 @@ export default function RadnoVrijemePage() {
         <tbody>
           {zaposlenici.map((z) => (
             <tr key={z.id_zaposlenik}>
-              <td style={{ fontSize: "larger" }}>
-                {z.spol == "Ž" ? "👩🏼‍⚕️" : "👨🏻‍⚕️"}
-              </td>
               <td>
                 {z.ime} {z.prezime}
               </td>

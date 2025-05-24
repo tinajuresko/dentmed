@@ -5,7 +5,7 @@ export const terminRoutes = {
   getAll: () => `${DENTMED_API_HOST}/termin`,
 
   // Dodaj novi termin
-  add: () => `${DENTMED_API_HOST}/termin`,
+  add: (trajanje) => `${DENTMED_API_HOST}/termin/${trajanje}`,
 
   // Ažuriraj termin po ID-u
   update: (id_termin: number | string) =>
@@ -24,6 +24,10 @@ export const terminRoutes = {
     `${DENTMED_API_HOST}/termin/slobodni/smjena/${id_smjena}/datum/${datum}/${trajanje}`,
 
   // Dohvati zauzete termine za zadani datum i smjenu
-  getBusyBySmjenaAndDate: (id_smjena: number | string, datum: string) =>
-    `${DENTMED_API_HOST}/termin/zauzeti/smjena/${id_smjena}/datum/${datum}`,
+  getBusyBySmjenaAndDate: (
+    id_smjena: number | string,
+    datum: string,
+    trajanje: number
+  ) =>
+    `${DENTMED_API_HOST}/termin/zauzeti/smjena/${id_smjena}/datum/${datum}/${trajanje}`,
 };

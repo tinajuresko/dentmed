@@ -165,7 +165,7 @@ export default function PacijentiPage() {
 
   return (
     <div>
-      <h1>👥 Popis pacijenata</h1>
+      <h2>👥 Popis pacijenata</h2>
 
       <FilterInput data={pacijenti} onFilter={handleFilter} />
       {
@@ -297,10 +297,19 @@ export default function PacijentiPage() {
                     textAlign: "center",
                     display: "flex",
                     alignItems: "center",
+                    gap: "10px",
                   }}
                 >
                   <span style={{ fontSize: "xxx-large" }}>
-                    {p.spol == "Ž" ? "👩🏻‍🦰" : "🧔🏻‍♂️"}
+                    {p.spol == "Ž" ? (
+                      <img
+                        src="/femalePatient.png"
+                        width={50}
+                        height={55}
+                      ></img>
+                    ) : (
+                      <img src="/malePatient.png" width={50} height={55}></img>
+                    )}
                   </span>{" "}
                   {p.ime} {p.prezime}
                 </span>

@@ -19,8 +19,8 @@ namespace DENTMED_API.Controllers
         }
 
         //postavljanje novog termina, odabir
-        [HttpPost]
-        public async Task<IActionResult> AddNewTermin([FromBody] Termin newTermin)
+        [HttpPost ("{trajanje}")]
+        public async Task<IActionResult> AddNewTermin(int trajanje, [FromBody] Termin newTermin)
         {
             var postojeciPacijent = await _context.Pacijent.AnyAsync(p => p.id_pacijent == newTermin.id_pacijent);
 
@@ -30,13 +30,15 @@ namespace DENTMED_API.Controllers
             {
                 return BadRequest("Neispravni podaci o terminu.");
             }
-
+            newTermin.pocetak = newTermin.pocetak.ToUniversalTime();
             newTermin.id_termin = await _terminservices.GetNextIdTermin();
+            newTermin.kraj = _terminservices.GetKraj(trajanje, newTermin.pocetak);
+
 
             _context.Termin.Add(newTermin);
             await _context.SaveChangesAsync();
 
-            return Ok();
+            return Ok(newTermin);
         }
 
         //izmjena postojeceg termina
@@ -59,8 +61,8 @@ namespace DENTMED_API.Controllers
             odabraniTermin.id_lijecnik = updatedTermin.id_lijecnik;
             odabraniTermin.id_pacijent = updatedTermin.id_pacijent;
             odabraniTermin.id_prostor = updatedTermin.id_prostor;
-            odabraniTermin.pocetak = updatedTermin.pocetak;
-            odabraniTermin.kraj = updatedTermin.kraj;
+            odabraniTermin.pocetak = updatedTermin.pocetak.ToUniversalTime();
+            odabraniTermin.kraj = updatedTermin.kraj.ToUniversalTime();
             odabraniTermin.id_usluga = updatedTermin.id_usluga;
 
             _context.Termin.Update(odabraniTermin);
@@ -96,8 +98,8 @@ namespace DENTMED_API.Controllers
         }
 
         //vraca samo zauzete termine za dani datum i smjenu
-        [HttpGet("zauzeti/smjena/{id_smjena}/datum/{datum}")]
-        public async Task<ActionResult<Termin>> GetZauzetTerminBySmjenaId(int id_smjena, DateOnly datum)
+        [HttpGet("zauzeti/smjena/{id_smjena}/datum/{datum}/{trajanje}")]
+        public async Task<ActionResult<Termin>> GetZauzetTerminBySmjenaId(int id_smjena, DateOnly datum, int trajanje)
         {
             var smjena = await _context.RadnoVrijeme.FindAsync(id_smjena);
 
@@ -108,9 +110,10 @@ namespace DENTMED_API.Controllers
 
             TimeOnly pocetak = smjena.pocetak;
             TimeOnly kraj = smjena.kraj;
+            TimeSpan tra = TimeSpan.FromMinutes(trajanje);
 
             var zauzeti_termini = await _context.Termin
-                .Where(t => DateOnly.FromDateTime(t.pocetak) == datum && t.pocetak.TimeOfDay >= pocetak.ToTimeSpan())
+                .Where(t => DateOnly.FromDateTime(t.pocetak) == datum && t.pocetak.TimeOfDay >= pocetak.ToTimeSpan() && (t.kraj - t.pocetak) == tra)
                 .ToListAsync();
 
             if (zauzeti_termini == null)

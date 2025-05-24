@@ -1,4 +1,4 @@
-import { Pacijent } from './Pacijent';
+import { Pacijent } from "./pacijent";
 
 export interface Termin {
   id_termin: number;
@@ -6,7 +6,7 @@ export interface Termin {
   id_pacijent: number;
   id_prostor: number;
   pocetak: string; // DateTime kao ISO string
-  kraj: string;    // DateTime kao ISO string
+  kraj: string; // DateTime kao ISO string
   id_usluga: number;
   pacijent?: Pacijent | null; // opcionalno, jer API ne šalje uvijek
 }
