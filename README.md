@@ -1,5 +1,7 @@
 # DENTMED - Sustav za upravljanje poliklinikom dentalne medicine
 
+<img src="public/logo.png" alt="Logo" width="200" height="200">
+
 Informacijski sustav izrađen u svrhe projekta iz predmeta "Informacijski sustavi" na **Fakultetu elektrotehnike i računarstva u Zagrebu**.
 
 ## Pokretanje dijelova aplikacije
