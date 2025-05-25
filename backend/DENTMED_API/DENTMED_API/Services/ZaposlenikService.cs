@@ -1,7 +1,6 @@
 ﻿using DENTMED_API.Contexts;
 using DENTMED_API.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
 
 namespace DENTMED_API.Services
 {
@@ -48,10 +47,8 @@ namespace DENTMED_API.Services
             {
                 if (!zauzeti_termini.Any(ter => ter.id_lijecnik == lijecnici[i].id_zaposlenik && ((ter.pocetak <= pocetak && pocetak < ter.kraj) || (ter.pocetak < kraj && kraj <= ter.kraj))))
                 {
-                    Debug.WriteLine("prosao sam ja");
                     slobodni_lijecnik.Add(lijecnici[i]);
                 }
-                Debug.WriteLine(lijecnici[i].prezime);
             }
 
             return slobodni_lijecnik;

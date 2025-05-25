@@ -1,10 +1,7 @@
 ﻿using DENTMED_API.Contexts;
-using DENTMED_API.Models;
 using DENTMED_API.Models.DTO;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace DENTMED_API.Services
 {
