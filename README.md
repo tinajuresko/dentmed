@@ -6,7 +6,7 @@ Informacijski sustav izrađen u svrhe projekta iz predmeta "Informacijski sustav
 
 ## Pokretanje dijelova aplikacije
 
-- Frontend (cd dentmed)
+- **Frontend** (cd dentmed)
 
 ```bash
 git clone https://github.com/tinajuresko/dentmed.git
@@ -15,7 +15,7 @@ git clone https://github.com/tinajuresko/dentmed.git
 - npm run preview
 ```
 
-- Backend (cd dentmed/backend/DENTMED_API/DENTMED_API)
+- **Backend** (cd dentmed/backend/DENTMED_API/DENTMED_API)
 
 ```bash
 git clone https://github.com/tinajuresko/dentmed.git
