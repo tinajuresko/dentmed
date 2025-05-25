@@ -9,3 +9,11 @@ namespace DENTMED_API.Models
         public string naziv { get; set;}
     }
 }
+
+/*
+ * CREATE TABLE public.uloga (
+    id_uloga integer NOT NULL,
+    naziv character varying(255)
+);
+
+ */

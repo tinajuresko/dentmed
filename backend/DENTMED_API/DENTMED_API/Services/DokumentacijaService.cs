@@ -12,14 +12,14 @@ namespace DENTMED_API.Services
             _context = context;
         }
 
-
+        //Generator id za dokumentaciju
         public async Task<int> GetNextIdDokumentacija()
         {
             var lastDokument = await _context.Dokumentacija
                 .OrderByDescending(p => p.id_dokument)
                 .FirstOrDefaultAsync();
 
-            return lastDokument != null ? lastDokument.id_dokument + 1 : 10000;
+            return lastDokument != null ? lastDokument.id_dokument + 1 : 10000;//dokumentacija krece od 10000 blok sifri
         }
     }
 }

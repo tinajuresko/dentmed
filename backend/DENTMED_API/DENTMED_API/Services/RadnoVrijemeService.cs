@@ -12,9 +12,10 @@ namespace DENTMED_API.Services
             _context = context;
         }
 
-
+        //Generator id za smjene
         public async Task<int> GetNextIdSmjena()
         {
+            //sort smjena
             var firstSmjena = await _context.RadnoVrijeme
                 .OrderBy(p => p.id_smjena)
                 .FirstOrDefaultAsync();

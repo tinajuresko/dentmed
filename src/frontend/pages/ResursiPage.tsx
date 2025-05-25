@@ -3,7 +3,6 @@ import { opremaController } from "../controllers/opremaController";
 import { prostorController } from "../controllers/prostorController";
 import { uredajController } from "../controllers/uredajController";
 import { Oprema } from "../models/Oprema";
-import FilterInput from "../components/FilterInput";
 import { Prostor } from "../models/Prostor";
 import { Uredaj } from "../models/Uredaj";
 

@@ -1,6 +1,3 @@
-import React from "react";
-import Footer from "../components/Footer";
-
 const Homepage = () => {
   return (
     <div style={{ fontFamily: "sans-serif", color: "#333" }}>

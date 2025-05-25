@@ -2,6 +2,7 @@
 
 namespace DENTMED_API.Models.DTO
 {
+    //Slobodni termini
     public class FreeTermin
     {
         [Key]

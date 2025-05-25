@@ -18,6 +18,7 @@ builder.Services.AddScoped<PacijentService>();
 builder.Services.AddScoped<TerminServices>();
 builder.Services.AddScoped<DokumentacijaService>();
 builder.Services.AddScoped<RadnoVrijemeService>();
+builder.Services.AddScoped<ZaposlenikService>();
 
 //CORS
 builder.Services.AddCors(options =>
@@ -25,6 +26,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+        policy.WithOrigins("http://localhost:4173")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

@@ -20,15 +20,16 @@ namespace DENTMED_API.Controllers
 
         //dohvat dokumentacije za pacijenta s id_pacijent
         [HttpGet("pacijent/{id_pacijent}")]
-        public async Task<ActionResult<Dokumentacija>> GetDokumentacijaByPacijentId(int id_pacijent)
+        public async Task<ActionResult<List<Dokumentacija>>> GetDokumentacijaByPacijentId(int id_pacijent)
         {
+
             var dokumenti = await _context.Dokumentacija
                 .Where(doc => doc.id_pacijent == id_pacijent)
                 .ToListAsync();
 
-            if (dokumenti == null || dokumenti.Count==0)
+            if (dokumenti.Count == 0)
             {
-                return NotFound($"Nije pronađena dokumentacija za pacijents s id_pacijenta {id_pacijent}.");
+                return NotFound(new { Message = $"Nije pronađena dokumentacija za pacijenta s ID {id_pacijent}." });
             }
 
             return Ok(dokumenti);

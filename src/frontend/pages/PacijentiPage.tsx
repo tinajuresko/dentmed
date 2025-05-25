@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
-import FilterInput from "../components/FilterInput.jsx";
-import { pacijentController } from "../controllers/pacijentController.ts";
-import { Pacijent } from "../models/pacijent.js";
-import { Dokumentacija } from "../models/dokumentacija.js";
-import { dokumentacijaController } from "../controllers/dokumentacijaController.ts";
-import { zaposlenikController } from "../controllers/zaposlenikController.ts";
-import { Zaposlenik } from "../models/Zaposlenik.ts";
-import { Usluga } from "../models/Usluga.ts";
-import { uslugaController } from "../controllers/uslugaController.ts";
+import { pacijentController } from "../controllers/pacijentController";
+import { Dokumentacija } from "../models/Dokumentacija";
+import { dokumentacijaController } from "../controllers/dokumentacijaController";
+import { zaposlenikController } from "../controllers/zaposlenikController";
+import { Zaposlenik } from "../models/Zaposlenik";
+import { Usluga } from "../models/Usluga";
+import { uslugaController } from "../controllers/uslugaController";
+import FilterInput from "../components/FilterInput";
+import { Pacijent } from "../models/Pacijent";
 
 export default function PacijentiPage() {
   const [pacijenti, setPacijenti] = useState<Pacijent[]>([]);
@@ -64,7 +64,7 @@ export default function PacijentiPage() {
     fetchData();
   }, [change]);
 
-  const findDocumentation = async (id) => {
+  const findDocumentation = async (id: number) => {
     const dokumentacija = await dokumentacijaController.getAll(id);
     setDokumentacije(dokumentacija);
   };
@@ -73,12 +73,12 @@ export default function PacijentiPage() {
     setFiltriraniPacijenti(filtered);
   };
 
-  const obrisiPacijenta = async (id) => {
+  const obrisiPacijenta = async (id: number) => {
     await pacijentController.delete(id);
     setChange(!change);
   };
 
-  const toggleDetalji = (id) => {
+  const toggleDetalji = (id: number) => {
     setExpandedId((prev) => (prev === id ? null : id));
     // Reset forme nove dokumentacije kad se otvori novi pacijent
     findDocumentation(id);
@@ -104,7 +104,6 @@ export default function PacijentiPage() {
       id_pacijent: 0,
       id_lijecnik: Number(forma.id_lijecnik),
     };
-    console.log(noviPacijent);
     await pacijentController.create(noviPacijent);
     setChange(!change);
     setForma({
@@ -426,6 +425,7 @@ export default function PacijentiPage() {
                             handleDokumentacijaChange(e);
                             setSelectedUsluga(e.target.value);
                           }}
+                          required
                         >
                           <option value="">Odaberite uslugu</option>
                           {usluge.map((s) => (
@@ -442,6 +442,7 @@ export default function PacijentiPage() {
                             handleDokumentacijaChange(e);
                             setSelectedLijecnik(e.target.value);
                           }}
+                          required
                         >
                           <option value="">Odaberite liječnika</option>
                           {lijecnici.map((s) => (
@@ -459,6 +460,7 @@ export default function PacijentiPage() {
                           placeholder="Datum i vrijeme"
                           value={novaDokumentacija.datum_vrijeme}
                           onChange={handleDokumentacijaChange}
+                          required
                         />
                       </div>
                       <button type="submit" style={{ width: "fit-content" }}>

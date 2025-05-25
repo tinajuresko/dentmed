@@ -3,7 +3,6 @@ using DENTMED_API.Models;
 using DENTMED_API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace DENTMED_API.Controllers
 {
@@ -21,9 +20,19 @@ namespace DENTMED_API.Controllers
 
         //Dohvat svih pacijenata i njihovih info
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Pacijent>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<Pacijent>>> GetPacijent()
         {
-            return await _context.Pacijent.ToListAsync();
+            var pacijenti = await _context.Pacijent.ToListAsync();
+            return Ok(pacijenti);
+        }
+
+        //Dohvat sloboodnog pacijenata za odredeni termin
+        [HttpGet ("{date}/{trajanje}")]
+        public async Task<ActionResult<IEnumerable<Pacijent>>> GetFreePacijent(DateTime date, int trajanje)
+        {
+            var pacijenti = await _pacijentService.GetFreePacijent(date, trajanje);
+
+            return Ok(pacijenti);
         }
 
         //Unos novog pacijenta u bazu podataka

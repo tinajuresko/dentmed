@@ -21,3 +21,24 @@ namespace DENTMED_API.Models
 
     }
 }
+
+/*
+ * CREATE TABLE public.zaposlenik (
+    id_zaposlenik integer NOT NULL,
+    ime character varying(255),
+    prezime character varying(255),
+    oib character varying(8),
+    datum_rod date,
+    spol character varying(2),
+    adresa character varying(255),
+    mjesto character varying(255),
+    priv_tel character varying(255),
+    posl_tel character varying(255),
+    id_uloga integer,
+    status character varying(255),
+    iznos_place numeric,
+    strucna_sprema character varying(255),
+    id_radno_vrijeme integer,
+    email character varying(255)
+);
+ */

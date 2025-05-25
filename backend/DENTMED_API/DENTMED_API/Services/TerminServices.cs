@@ -1,6 +1,9 @@
 ﻿using DENTMED_API.Contexts;
+using DENTMED_API.Models;
 using DENTMED_API.Models.DTO;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using System.Runtime.ConstrainedExecution;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DENTMED_API.Services
@@ -9,12 +12,13 @@ namespace DENTMED_API.Services
     {
 
         private readonly AppDbContext _context;
-
         public TerminServices(AppDbContext context)
         {
             _context = context;
         }
 
+
+        //Pretraga slobodnih termina za odredeno trajanje termina
         public async Task<List<FreeTermin>> GetSlobodniTermini(DateOnly datum, TimeOnly pocetak, TimeOnly kraj, int trajanje_min)
         {
             List<FreeTermin> slobodni_termini = new List<FreeTermin>();
@@ -49,15 +53,17 @@ namespace DENTMED_API.Services
             return slobodni_termini;
         }
 
+        //Generator novih id za termine
         public async Task<int> GetNextIdTermin()
         {
             var lastTermin = await _context.Termin
                 .OrderByDescending(p => p.id_termin)
                 .FirstOrDefaultAsync();
 
-            return lastTermin != null ? lastTermin.id_termin + 1 : 100000; 
+            return lastTermin != null ? lastTermin.id_termin + 1 : 100000; //termini krecu od 100000 blok sifri
         }
 
+        //Funkcija vraca kraj termina za odrdeno trajanje od pocetka termina
         public DateTime GetKraj(int trajanje, DateTime pocetak)
         {
             TimeSpan tr = TimeSpan.FromMinutes(trajanje);
@@ -68,6 +74,7 @@ namespace DENTMED_API.Services
             return kraj;
         }
 
+        //Provjera je li termin unutar odredenog trajanja
         public bool isInsideTrajanje(int trajanje, DateTime pocetak, DateTime kraj)
         {
             TimeSpan tra= TimeSpan.FromMinutes(trajanje);

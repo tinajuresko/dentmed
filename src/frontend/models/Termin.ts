@@ -1,4 +1,4 @@
-import { Pacijent } from "./pacijent";
+import { Pacijent } from "./Pacijent";
 
 export interface Termin {
   id_termin: number;

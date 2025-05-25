@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-
 import { Zaposlenik } from "../models/Zaposlenik";
 import { terminController } from "../controllers/terminController";
-import { Termin } from "../models/termin";
+import { Termin } from "../models/Termin";
 import { zaposlenikController } from "../controllers/zaposlenikController";
 import { radnoVrijemeController } from "../controllers/radnoVrijemeController";
-import { RadnoVrijeme } from "../models/radnovrijeme";
+import { RadnoVrijeme } from "../models/RadnoVrijeme";
 import { uslugaController } from "../controllers/uslugaController";
 import { Usluga } from "../models/Usluga";
+import { pacijentController } from "../controllers/pacijentController";
+import { Pacijent } from "../models/Pacijent";
 
 export default function TerminiPage() {
-  const [lijecnici, setLijecnici] = useState<Zaposlenik[]>([]);
   const [slobodniTermini, setSlobodniTermini] = useState<Termin[]>([]);
   const [zauzetiTermini, setZauzetiTermini] = useState<Termin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,9 +20,16 @@ export default function TerminiPage() {
   const [datum, setDatum] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
+  const [lijecnici, setLijecnici] = useState<Zaposlenik[]>([]);
   const [usluge, setUsluge] = useState<Usluga[]>([]);
-  const [selectedUsluga, setSelectedUsluga] = useState("");
-  const [selectedLijecnik, setSelectedLijecnik] = useState("");
+  const [pacijenti, setPacijenti] = useState<Pacijent[]>([]);
+  const [selectedUsluga, setSelectedUsluga] = useState<number | undefined>();
+  const [selectedLijecnik, setSelectedLijecnik] = useState<
+    number | undefined
+  >();
+  const [selectedPacijent, setSelectedPacijent] = useState<
+    number | undefined
+  >();
   const [odabraniTerm, setOdabraniTerm] = useState<string | undefined>();
   const [uredi, setUredi] = useState(false);
 
@@ -57,10 +64,12 @@ export default function TerminiPage() {
     );
     const lijecnici = await zaposlenikController.getAllDoc();
     const usluge = await uslugaController.getAll();
+    const pacijenti = await pacijentController.getAll();
     setUsluge(usluge);
     setSlobodniTermini(freeTermin);
     setZauzetiTermini(busyTermin);
     setLijecnici(lijecnici);
+    setPacijenti(pacijenti);
     setLoading(false);
   };
 
@@ -88,8 +97,8 @@ export default function TerminiPage() {
         id_lijecnik: 0,
         id_usluga: 0,
       });
-      setSelectedLijecnik("");
-      setSelectedUsluga("");
+      setSelectedLijecnik(undefined);
+      setSelectedUsluga(undefined);
       setOdabraniTerm(undefined);
       loadTermini();
     } catch (err) {
@@ -99,6 +108,19 @@ export default function TerminiPage() {
 
   const handleOdabir = async (id_odabrani: number) => {
     setOdabraniTerm(slobodniTermini[id_odabrani].pocetak);
+    const lijecnici = await zaposlenikController.getAllFreeDoc(
+      slobodniTermini[id_odabrani].pocetak,
+      selectedTrajanje
+    );
+    const pacijenti = await pacijentController.getAllFree(
+      slobodniTermini[id_odabrani].pocetak,
+      selectedTrajanje
+    );
+    setLijecnici(lijecnici);
+    setPacijenti(pacijenti);
+    setSelectedUsluga(undefined);
+    setSelectedLijecnik(undefined);
+    setSelectedPacijent(undefined);
     setNewTermin({
       id_termin: 0,
       pocetak: slobodniTermini[id_odabrani].pocetak,
@@ -118,7 +140,6 @@ export default function TerminiPage() {
       id_usluga: Number(newTermin.id_usluga),
     };
 
-    console.log(noviTermin);
     try {
       await terminController.update(id_termin, noviTermin);
       setNewTermin({
@@ -130,8 +151,9 @@ export default function TerminiPage() {
         id_lijecnik: 0,
         id_usluga: 0,
       });
-      setSelectedLijecnik("");
-      setSelectedUsluga("");
+      setSelectedLijecnik(undefined);
+      setSelectedUsluga(undefined);
+      setSelectedPacijent(undefined);
       setUredi(false);
       loadTermini();
     } catch (err) {
@@ -141,7 +163,17 @@ export default function TerminiPage() {
 
   const handleUredi = async (id_odabrani: number) => {
     setOdabraniTerm(zauzetiTermini[id_odabrani].pocetak);
-    setUredi(true);
+    const lijecnici = await zaposlenikController.getAllFreeDoc(
+      zauzetiTermini[id_odabrani].pocetak,
+      selectedTrajanje
+    );
+    const pacijenti = await pacijentController.getAllFree(
+      zauzetiTermini[id_odabrani].pocetak,
+      selectedTrajanje
+    );
+    setLijecnici(lijecnici);
+    setPacijenti(pacijenti);
+
     setNewTermin({
       id_termin: zauzetiTermini[id_odabrani].id_termin,
       pocetak: zauzetiTermini[id_odabrani].pocetak,
@@ -160,6 +192,14 @@ export default function TerminiPage() {
   ) => {
     const { name, value } = e.target;
     setNewTermin((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const dateValidation = (termin: string) => {
+    const terminDateTime = new Date(termin);
+    if (terminDateTime < new Date()) {
+      return false;
+    }
+    return true;
   };
 
   const getSmjene = async () => {
@@ -263,7 +303,15 @@ export default function TerminiPage() {
               </thead>
               <tbody>
                 {slobodniTermini.map((termin, ind) => (
-                  <tr key={termin.id_termin} className="termin_row">
+                  <tr
+                    key={termin.id_termin}
+                    className="termin_row"
+                    style={{
+                      color: `${
+                        dateValidation(termin.pocetak) ? "black" : "gray"
+                      }`,
+                    }}
+                  >
                     <td>
                       {termin.pocetak.split("T")[0]}{" "}
                       {termin.pocetak.split("T")[1]}
@@ -273,16 +321,22 @@ export default function TerminiPage() {
                     </td>
                     <td>{selectedTrajanje} min</td>
                     <td>{termin.id_prostor}</td>
-                    <td style={{ backgroundColor: "#91ff72" }}>Slobodan</td>
+                    {dateValidation(termin.pocetak) ? (
+                      <td style={{ backgroundColor: "#91ff72" }}>Slobodan</td>
+                    ) : (
+                      <td style={{ backgroundColor: "#ffc039" }}>Završio</td>
+                    )}
                     <td>
-                      <button
-                        onClick={() => {
-                          handleOdabir(ind);
-                          scrollToSection();
-                        }}
-                      >
-                        Odaberi
-                      </button>
+                      {dateValidation(termin.pocetak) && (
+                        <button
+                          onClick={() => {
+                            handleOdabir(ind);
+                            scrollToSection();
+                          }}
+                        >
+                          Odaberi
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -320,7 +374,15 @@ export default function TerminiPage() {
                 {zauzetiTermini.length > 0 ? (
                   <>
                     {zauzetiTermini.map((termin, ind) => (
-                      <tr key={termin.id_termin} className="termin_row">
+                      <tr
+                        key={termin.id_termin}
+                        className="termin_row"
+                        style={{
+                          color: `${
+                            dateValidation(termin.pocetak) ? "black" : "gray"
+                          }`,
+                        }}
+                      >
                         <td>
                           {termin.pocetak.split("T")[0]}{" "}
                           {termin.pocetak.split("T")[1]}
@@ -332,21 +394,42 @@ export default function TerminiPage() {
                         <td>{termin.id_prostor}</td>
                         <td>{termin.id_pacijent}</td>
                         <td>{termin.id_lijecnik}</td>
-                        <td style={{ backgroundColor: "#fe8585" }}>Zauzet</td>
+                        {dateValidation(termin.pocetak) ? (
+                          <td style={{ backgroundColor: "#fe8585" }}>Zauzet</td>
+                        ) : (
+                          <td style={{ backgroundColor: "#ffc039" }}>
+                            Završio
+                          </td>
+                        )}
+
                         <td>
-                          <button
-                            onClick={() => {
-                              handleUredi(ind);
-                              scrollToSection();
-                            }}
-                          >
-                            Uredi
-                          </button>
-                          <button
-                            onClick={() => handleDelete(termin.id_termin)}
-                          >
-                            Obriši
-                          </button>
+                          {dateValidation(termin.pocetak) && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedUsluga(
+                                    zauzetiTermini[ind].id_usluga
+                                  );
+                                  setSelectedLijecnik(
+                                    zauzetiTermini[ind].id_lijecnik
+                                  );
+                                  setSelectedPacijent(
+                                    zauzetiTermini[ind].id_pacijent
+                                  );
+                                  setUredi(true);
+                                  handleUredi(ind);
+                                  scrollToSection();
+                                }}
+                              >
+                                Uredi
+                              </button>
+                              <button
+                                onClick={() => handleDelete(termin.id_termin)}
+                              >
+                                Obriši
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -360,124 +443,148 @@ export default function TerminiPage() {
             </table>
           </div>
 
-          <h3>{uredi ? "Uredi termin" : "Dodaj novi termin"}</h3>
-          <div
-            ref={sectionRef}
-            style={{
-              display: "flex",
-
-              justifyContent: "center",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              <label>Datum i vrijeme</label>
-              <input
-                disabled
-                type="datetime-local"
-                name="pocetak"
-                value={odabraniTerm || ""}
-                onChange={(e) => {
-                  newTermin.pocetak = new Date(e.target.value).toISOString();
-                  handleNewTerminChange(e);
-                }}
-              />
-              <label>Trajanje</label>
-              <input
-                disabled
-                type="text"
-                placeholder="Trajanje"
-                name="trajanje"
-                value={selectedTrajanje || ""}
-                onChange={(e) => {
-                  setSelectedTrajanje(parseInt(e.target.value));
-                }}
-              />
-              <label>Prostor</label>
-              <input
-                disabled
-                name="id_prostor"
-                value={newTermin.id_prostor || ""}
-                placeholder="Prostor"
-                onChange={(e) => {
-                  newTermin.id_prostor = parseInt(e.target.value);
-                  handleNewTerminChange(e);
-                }}
-              />
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              <label>Pacijent</label>
-              <input
-                name="id_pacijent"
-                placeholder="ID pacijenta"
-                value={newTermin.id_pacijent || ""}
-                onChange={(e) => {
-                  newTermin.id_pacijent = parseInt(e.target.value);
-                  handleNewTerminChange(e);
-                }}
-              />
-              <label>Usluga</label>
-              <select
-                name="id_usluga"
-                style={{ minWidth: "180px" }}
-                value={selectedUsluga || ""}
-                onChange={(e) => {
-                  newTermin.id_usluga = parseInt(e.target.value);
-                  handleNewTerminChange(e);
-                  setSelectedUsluga(e.target.value);
-                }}
-              >
-                <option value="">Odaberite uslugu</option>
-                {usluge.map((s) => (
-                  <option key={s.id_usluga} value={s.id_usluga}>
-                    {s.naziv}
-                  </option>
-                ))}
-              </select>
-              <label>Liječnik</label>
-              <select
-                name="id_lijecnik"
-                style={{ minWidth: "180px" }}
-                value={selectedLijecnik || ""}
-                onChange={(e) => {
-                  newTermin.id_lijecnik = parseInt(e.target.value);
-                  handleNewTerminChange(e);
-                  setSelectedLijecnik(e.target.value);
-                }}
-              >
-                <option value="">Odaberite liječnika</option>
-                {lijecnici.map((s) => (
-                  <option key={s.id_zaposlenik} value={s.id_zaposlenik}>
-                    {s.ime} {s.prezime}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <button
-            onClick={() => {
+          <h3 ref={sectionRef}>
+            {uredi ? "Uredi termin" : "Dodaj novi termin"}
+          </h3>
+          <form
+            onSubmit={() => {
               uredi ? handleUpdate(newTermin.id_termin) : handleAdd();
             }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 10,
+            }}
           >
-            Dodaj
-          </button>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label>Datum i vrijeme</label>
+                <input
+                  disabled
+                  type="datetime-local"
+                  name="pocetak"
+                  value={odabraniTerm || ""}
+                  onChange={(e) => {
+                    newTermin.pocetak = new Date(e.target.value).toISOString();
+                    handleNewTerminChange(e);
+                  }}
+                  required
+                />
+                <label>Trajanje</label>
+                <input
+                  disabled
+                  type="text"
+                  placeholder="Trajanje"
+                  name="trajanje"
+                  value={selectedTrajanje || ""}
+                  onChange={(e) => {
+                    setSelectedTrajanje(parseInt(e.target.value));
+                  }}
+                  required
+                />
+                <label>Prostor</label>
+                <input
+                  disabled
+                  name="id_prostor"
+                  value={newTermin.id_prostor || ""}
+                  placeholder="Prostor"
+                  onChange={(e) => {
+                    newTermin.id_prostor = parseInt(e.target.value);
+                    handleNewTerminChange(e);
+                  }}
+                  required
+                />
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label>Pacijent</label>
+
+                <select
+                  name="id_pacijent"
+                  style={{ minWidth: "180px" }}
+                  value={selectedPacijent}
+                  onChange={(e) => {
+                    newTermin.id_pacijent = parseInt(e.target.value);
+                    handleNewTerminChange(e);
+                    setSelectedUsluga(parseInt(e.target.value));
+                  }}
+                  required
+                >
+                  <option value="">Odaberite pacijenta</option>
+                  {pacijenti.map((s) => (
+                    <option key={s.id_pacijent} value={s.id_pacijent}>
+                      {s.ime} {s.prezime}
+                    </option>
+                  ))}
+                </select>
+
+                <label>Usluga</label>
+                <select
+                  name="id_usluga"
+                  style={{ minWidth: "180px" }}
+                  value={selectedUsluga}
+                  onChange={(e) => {
+                    newTermin.id_usluga = parseInt(e.target.value);
+                    handleNewTerminChange(e);
+                    setSelectedUsluga(parseInt(e.target.value));
+                  }}
+                  required
+                >
+                  <option value="">Odaberite uslugu</option>
+                  {usluge.map((s) => (
+                    <option key={s.id_usluga} value={s.id_usluga}>
+                      {s.naziv}
+                    </option>
+                  ))}
+                </select>
+                <label>Liječnik</label>
+                <select
+                  name="id_lijecnik"
+                  style={{ minWidth: "180px" }}
+                  value={selectedLijecnik}
+                  onChange={(e) => {
+                    newTermin.id_lijecnik = parseInt(e.target.value);
+                    handleNewTerminChange(e);
+                    setSelectedLijecnik(parseInt(e.target.value));
+                  }}
+                  required
+                >
+                  <option value="">Odaberite liječnika</option>
+                  {lijecnici.map((s) => (
+                    <option key={s.id_zaposlenik} value={s.id_zaposlenik}>
+                      {s.ime} {s.prezime}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button type="submit" disabled={odabraniTerm == undefined}>
+              Dodaj
+            </button>
+          </form>
         </>
       )}
     </div>
