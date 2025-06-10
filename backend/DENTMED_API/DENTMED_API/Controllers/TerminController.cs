@@ -19,7 +19,7 @@ namespace DENTMED_API.Controllers
         }
 
         //postavljanje novog termina, odabir
-        [HttpPost ("{trajanje}")]
+        [HttpPost("{trajanje}")]
         public async Task<IActionResult> AddNewTermin(int trajanje, [FromBody] Termin newTermin)
         {
             var postojeciPacijent = await _context.Pacijent.AnyAsync(p => p.id_pacijent == newTermin.id_pacijent);
@@ -45,7 +45,6 @@ namespace DENTMED_API.Controllers
         [HttpPut("{id_termin}")]
         public async Task<IActionResult> UpdateTermin(int id_termin, [FromBody] Termin updatedTermin)
         {
-           
             var odabraniTermin = await _context.Termin.FindAsync(id_termin);
 
             if (odabraniTermin == null)
@@ -73,7 +72,7 @@ namespace DENTMED_API.Controllers
 
         //vraca sve slobodne termine za zadani datum i smjenu i odredeno trajanje
         [HttpGet("slobodni/smjena/{id_smjena}/datum/{datum}/{trajanje}")]
-        public async Task<ActionResult<Termin>> GetTerminBySmjenaId(int id_smjena, DateOnly datum,int trajanje)
+        public async Task<ActionResult<Termin>> GetTerminBySmjenaId(int id_smjena, DateOnly datum, int trajanje)
         {
 
             var smjena = await _context.RadnoVrijeme.FindAsync(id_smjena);
@@ -88,11 +87,11 @@ namespace DENTMED_API.Controllers
 
             var slobodni_termini = await _terminservices.GetSlobodniTermini(datum, pocetak, kraj, trajanje);
 
-            if(slobodni_termini == null)
+            if (slobodni_termini == null)
             {
                 return NotFound("Ne postoje slobodni termini za postavljeni datum.");
             }
-            
+
 
             return Ok(slobodni_termini);
         }
@@ -156,4 +155,4 @@ namespace DENTMED_API.Controllers
         }
 
     }
-    }
+}

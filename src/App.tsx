@@ -10,6 +10,8 @@ import ResursiPage from "./frontend/pages/ResursiPage";
 import RadnoVrijemePage from "./frontend/pages/RadnoVrijemePage";
 import Footer from "./frontend/components/Footer";
 
+import AppointmentsPage from "./frontend/pages/AppointmentRequestForm";
+
 const App = () => {
   return (
     <Router>
@@ -17,7 +19,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Homepage />} />
         <Route path="/pacijenti" element={<PacijentiPage />} />
-        <Route path="/termini" element={<TerminiPage />} />
+        <Route path="/termini" element={<AppointmentsPage />} />
         <Route path="/resursi" element={<ResursiPage />} />
         <Route path="/radno-vrijeme" element={<RadnoVrijemePage />} />
       </Routes>
