@@ -7,11 +7,12 @@ using System.Threading.Tasks;
 using System; // Za Guid
 using Microsoft.Extensions.Logging;
 using System.Linq;
-
+using System.Text.Json.Serialization;
 namespace DENTMED_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")] // Ruta će biti /api/camunda
+
     public class CamundaController : ControllerBase
     {
         private readonly HttpClient _httpClient;
@@ -232,10 +233,22 @@ namespace DENTMED_API.Controllers
             };
         }
 
+        //DODANO::
+        public class CamundaVariable
+        {
+            [JsonPropertyName("value")] // Koristi JsonPropertyName ako želiš drugačiji naziv propertyja u JSON-u
+            public object Value { get; set; }
+            [JsonPropertyName("type")]
+            public string Type { get; set; }
+            // Možeš dodati i ValueInfo ako ti treba, npr. za JSON varijable
+            // [JsonPropertyName("valueInfo")]
+            // public Dictionary<string, object> ValueInfo { get; set; }
+        }
         public class CompleteTaskRequest
         {
             // Varijable koje dolaze od frontenda, npr. {'selectedAppointment': {value: '...', type: 'String'}}
-            public Dictionary<string, object> Variables { get; set; }
+            //public Dictionary<string, object> Variables { get; set; }
+            public Dictionary<string, CamundaVariable> Variables { get; set; }
         }
 
         // NOVI ENDPOINT: Dovršetak User Taska
@@ -250,7 +263,8 @@ namespace DENTMED_API.Controllers
                     variables = request.Variables
                 };
 
-                var jsonPayload = JsonSerializer.Serialize(payload);
+                //var jsonPayload = JsonSerializer.Serialize(payload);
+                var jsonPayload = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
                 var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
                 _logger.LogInformation($"Pokušavam dovršiti korisnički zadatak '{taskId}' s payloadom: {jsonPayload}");
