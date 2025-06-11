@@ -10,7 +10,7 @@ import ResursiPage from "./frontend/pages/ResursiPage";
 import RadnoVrijemePage from "./frontend/pages/RadnoVrijemePage";
 import Footer from "./frontend/components/Footer";
 
-import AppointmentsPage from "./frontend/pages/AppointmentRequestForm";
+import AppointmentsPage from "./frontend/pages/AppointmentsPage";
 
 const App = () => {
   return (

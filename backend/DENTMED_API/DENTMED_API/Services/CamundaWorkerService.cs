@@ -1,8 +1,7 @@
 // Services/CamundaWorkerService.cs
-
-using Microsoft.Extensions.Hosting; // Za BackgroundService
-using Microsoft.Extensions.Logging; // Za ILogger
-using Microsoft.Extensions.Configuration; // Za IConfiguration
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Net.Http;
 using System.Text;
@@ -10,9 +9,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+// Uklonjen DENTMED_API.Controllers, jer ne koristimo TerminController direktno
+using DENTMED_API.Models;
+using DENTMED_API.Interfaces; // Dodano za IMockTerminService
+using System.Linq;
 
-// Važno: Pobrini se da je ovaj namespace točan!
-// Ako je tvoj API projekt nazvan npr. "DENTMED_API", onda je ovo ispravno.
 namespace DENTMED_API.Services
 {
     public class CamundaWorkerService : BackgroundService
@@ -20,55 +21,44 @@ namespace DENTMED_API.Services
         private readonly ILogger<CamundaWorkerService> _logger;
         private readonly HttpClient _httpClient;
         private readonly string _camundaRestApiBaseUrl;
-        private const string WorkerId = "csharp-appointment-worker"; // Jedinstveni ID za tvoj worker
+        private const string WorkerId = "csharp-appointment-worker";
+        private readonly IMockTerminService _mockTerminService; // Promijenjeno iz TerminController
 
-        // Konstruktor koristi Dependency Injection za ILogger, IHttpClientFactory i IConfiguration
         public CamundaWorkerService(
             ILogger<CamundaWorkerService> logger,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IMockTerminService mockTerminService) // Konstruktor sada prima IMockTerminService
         {
             _logger = logger;
-            // Koristi named HttpClient ("CamundaClient") koji je konfiguriran u Program.cs
             _httpClient = httpClientFactory.CreateClient("CamundaClient");
-            // Dohvati Camunda Base URL iz konfiguracije (appsettings.json)
             _camundaRestApiBaseUrl = "http://localhost:8080/engine-rest";
+            _mockTerminService = mockTerminService; // Injektiramo mock servis
             _logger.LogInformation($"Camunda Worker Service initialized. Camunda URL: {_camundaRestApiBaseUrl}");
         }
 
-        // Glavna metoda workera koja se izvršava u pozadini
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation($"Camunda External Task Worker '{WorkerId}' started.");
 
-            // Petlja koja neprestano dohvaća i obrađuje zadatke dok se aplikacija ne zaustavi
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    // Dohvaćanje i zaključavanje za "provjera_dostupnih_termina" topic
                     await FetchAndLockTasks("provjera_dostupnih_termina", 5000, 10000, stoppingToken);
-
-                    // Dohvaćanje i zaključavanje za "posalji_ponudu" topic
                     await FetchAndLockTasks("posalji_ponudu", 5000, 10000, stoppingToken);
-
-                    // Dohvaćanje i zaključavanje za "predlozi_termin" topic
                     await FetchAndLockTasks("predlozi_termin", 5000, 10000, stoppingToken);
 
-                    // Kratka pauza prije novog ciklusa dohvaćanja zadataka
                     await Task.Delay(2000, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
-                    // Ovo se događa kada se aplikacija gasi
                     _logger.LogInformation("Worker service is stopping due to cancellation request.");
                     break;
                 }
                 catch (Exception ex)
                 {
-                    // Logiranje svih ostalih grešaka kako bi se vidjelo što se događa
                     _logger.LogError(ex, "An error occurred in Camunda Worker Service main loop.");
-                    // Pričekaj malo prije ponovnog pokušaja da se izbjegne preveliko opterećenje
                     await Task.Delay(5000, stoppingToken);
                 }
             }
@@ -76,23 +66,21 @@ namespace DENTMED_API.Services
             _logger.LogInformation($"Camunda External Task Worker '{WorkerId}' stopped.");
         }
 
-        // Metoda za dohvaćanje i zaključavanje vanjskih zadataka od Camunde
         private async Task FetchAndLockTasks(string topic, long lockDuration, long asyncResponseTimeout, CancellationToken stoppingToken)
         {
             var payload = new
             {
                 workerId = WorkerId,
-                maxTasks = 1, // Dohvaćamo jedan po jedan zadatak
+                maxTasks = 1,
                 usePriority = true,
-                asyncResponseTimeout = asyncResponseTimeout, // Koliko dugo Camunda čeka odgovor
+                asyncResponseTimeout = asyncResponseTimeout,
                 topics = new[]
                 {
                     new
                     {
                         topicName = topic,
-                        lockDuration = lockDuration, // Koliko dugo je zadatak zaključan za ovog workera
-                        // Deklariraj varijable koje su ti potrebne iz procesa za obradu zadatka
-                        variables = new[] { "patientName", "patientEmail", "selectedAppointment", "availableAppointments", "potvrda" }
+                        lockDuration = lockDuration,
+                        variables = new[] { "patientName", "patientEmail", "selectedAppointment", "availableAppointments", "potvrda", "smjenaId", "datumZakazivanja", "trajanjeTermina" } // Dodane varijable koje worker treba
                     }
                 }
             };
@@ -106,7 +94,6 @@ namespace DENTMED_API.Services
                 {
                     Content = content
                 };
-                // Pošalji zahtjev Camundi
                 var response = await _httpClient.SendAsync(requestMessage, stoppingToken);
 
                 if (response.IsSuccessStatusCode)
@@ -119,19 +106,39 @@ namespace DENTMED_API.Services
                         var taskId = task.GetProperty("id").GetString();
                         var processInstanceId = task.GetProperty("processInstanceId").GetString();
                         var topicName = task.GetProperty("topicName").GetString();
-                        var variables = task.GetProperty("variables"); // Pristup varijablama zadatka
+                        var variables = task.GetProperty("variables");
 
                         _logger.LogInformation($"Fetched task '{taskId}' for Process Instance '{processInstanceId}' on topic '{topicName}'.");
 
                         try
                         {
-                            // Pozivanje specifične metode za obradu zadatka ovisno o topicu
                             if (topicName == "provjera_dostupnih_termina")
                             {
-                                // Izvlačenje potrebnih varijabli iz taska
                                 string patientName = variables.GetProperty("patientName").GetProperty("value").GetString();
                                 string patientEmail = variables.GetProperty("patientEmail").GetProperty("value").GetString();
-                                await ProcessCheckAvailableAppointmentsTask(taskId, processInstanceId, patientName, patientEmail);
+
+                                // Pokušaj dohvatiti smjenaId, datumZakazivanja, trajanjeTermina iz varijabli
+                                int smjenaId = 1; // Default
+                                DateOnly datumZakazivanja = DateOnly.FromDateTime(DateTime.Now); // Default
+                                int trajanjeTermina = 60; // Default
+
+                                if (variables.TryGetProperty("smjenaId", out JsonElement smjenaIdElement) && smjenaIdElement.TryGetProperty("value", out JsonElement smjenaIdValue) && smjenaIdValue.ValueKind == JsonValueKind.Number)
+                                {
+                                    smjenaId = smjenaIdValue.GetInt32();
+                                }
+                                if (variables.TryGetProperty("datumZakazivanja", out JsonElement datumZakazivanjaElement) && datumZakazivanjaElement.TryGetProperty("value", out JsonElement datumZakazivanjaValue) && datumZakazivanjaValue.ValueKind == JsonValueKind.String)
+                                {
+                                    if (DateOnly.TryParse(datumZakazivanjaValue.GetString(), out DateOnly parsedDate))
+                                    {
+                                        datumZakazivanja = parsedDate;
+                                    }
+                                }
+                                if (variables.TryGetProperty("trajanjeTermina", out JsonElement trajanjeTerminaElement) && trajanjeTerminaElement.TryGetProperty("value", out JsonElement trajanjeTerminaValue) && trajanjeTerminaValue.ValueKind == JsonValueKind.Number)
+                                {
+                                    trajanjeTermina = trajanjeTerminaValue.GetInt32();
+                                }
+
+                                await ProcessCheckAvailableAppointmentsTask(taskId, processInstanceId, patientName, patientEmail, smjenaId, datumZakazivanja, trajanjeTermina);
                             }
                             else if (topicName == "posalji_ponudu")
                             {
@@ -140,7 +147,7 @@ namespace DENTMED_API.Services
                                 string selectedAppointment = variables.GetProperty("selectedAppointment").GetProperty("value").GetString();
                                 await ProcessSendOfferTask(taskId, processInstanceId, patientName, patientEmail, selectedAppointment);
                             }
-                            else if (topicName == "predlozi_termin") // ID iz tvog opisa
+                            else if (topicName == "predlozi_termin")
                             {
                                 string patientName = variables.GetProperty("patientName").GetProperty("value").GetString();
                                 await ProcessReselectAppointmentTask(taskId, processInstanceId, patientName);
@@ -148,7 +155,6 @@ namespace DENTMED_API.Services
                         }
                         catch (Exception taskEx)
                         {
-                            // Ako dođe do greške unutar obrade zadatka, prijavljujemo je Camundi
                             _logger.LogError(taskEx, $"Error processing task '{taskId}' on topic '{topicName}'. Reporting failure to Camunda.");
                             await ReportFailure(taskId, "Error processing task", taskEx.Message);
                         }
@@ -156,85 +162,61 @@ namespace DENTMED_API.Services
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
                 {
-                    // Nema dostupnih zadataka za ovaj topic, što je normalno
                     _logger.LogDebug($"No tasks fetched for topic '{topic}'.");
                 }
                 else
                 {
-                    // Logiranje grešaka pri dohvaćanju zadataka
                     var errorContent = await response.Content.ReadAsStringAsync();
                     _logger.LogError($"Error fetching tasks on topic '{topic}': {response.StatusCode} - {errorContent}");
                 }
             }
             catch (HttpRequestException ex)
             {
-                // Logiranje mrežnih grešaka (npr. Camunda nije dostupna)
                 _logger.LogError(ex, $"HTTP Request Error when fetching tasks on topic '{topic}'. Is Camunda running?");
             }
             catch (Exception ex)
             {
-                // Logiranje ostalih nepredviđenih grešaka
                 _logger.LogError(ex, $"An unexpected error occurred in FetchAndLockTasks for topic '{topic}'.");
             }
         }
 
-        // --- Implementacije specifičnih metoda za obradu zadataka ---
-        // Ovdje ćeš dodati svoju poslovnu logiku za svaki pojedini Service Task.
-
         /// <summary>
         /// Simulira provjeru dostupnih termina i dovršava zadatak s rezultatom.
+        /// Koristi mock podatke umjesto poziva baze.
         /// </summary>
-        private async Task ProcessCheckAvailableAppointmentsTask(string taskId, string processInstanceId, string patientName, string patientEmail)
+        private async Task ProcessCheckAvailableAppointmentsTask(string taskId, string processInstanceId, string patientName, string patientEmail, int smjenaId, DateOnly datumZakazivanja, int trajanjeTermina)
         {
             _logger.LogInformation($"Processing 'Provjeri dostupne termine' for {patientName} ({patientEmail})...");
-            // Ovdje bi išao STVARNI poziv tvom internom API-ju ili bazi podataka
-            // da dobiješ slobodne termine ortodonta.
-            List<string> availableTerms = SimulateGetAvailableAppointments();
 
-            // Dovršavanje Camunda External Taska i prosljeđivanje dostupnih termina
+            // Koristi mock servis za dohvat termina
+            List<Termin> slobodniTermini = await _mockTerminService.GetMockTerminBySmjenaIdAsync(smjenaId, datumZakazivanja, trajanjeTermina);
+
+            List<string> availableTermsStrings = new List<string>();
+            foreach (var termin in slobodniTermini)
+            {
+                availableTermsStrings.Add($"{termin.pocetak.ToString("dd.MM.yyyy HH:mm")} - {termin.kraj.ToString("HH:mm")}");
+            }
+
             await CompleteExternalTask(taskId, new Dictionary<string, object>
             {
-                // availableAppointments je naziv varijable koja će biti postavljena u Camundi
-                { "availableAppointments", new { value = JsonSerializer.Serialize(availableTerms), type = "String", valueInfo = new { serializationDataFormat = "application/json" } } }
+                { "availableAppointments", new { value = JsonSerializer.Serialize(availableTermsStrings), type = "String", valueInfo = new { serializationDataFormat = "application/json" } } }
             });
-            _logger.LogInformation($"'Provjeri dostupne termine' task '{taskId}' completed. Found {availableTerms.Count} appointments.");
+            _logger.LogInformation($"'Provjeri dostupne termine' task '{taskId}' completed. Found {availableTermsStrings.Count} mock appointments.");
         }
 
-        // POMOĆNA METODA: Simulira dohvat termina (zamijeni s pravom logikom!)
-        private List<string> SimulateGetAvailableAppointments()
-        {
-            // Ovdje bi išao stvarni poziv tvom internom API-ju (TerminServices)
-            // npr. _terminService.GetAvailableTermsForOrthodontist();
-            return new List<string> { "2025-07-01 10:00", "2025-07-01 11:30", "2025-07-02 09:00" };
-        }
-
-        /// <summary>
-        /// Simulira slanje ponude pacijentu.
-        /// </summary>
         private async Task ProcessSendOfferTask(string taskId, string processInstanceId, string patientName, string patientEmail, string selectedAppointment)
         {
             _logger.LogInformation($"Processing 'Pošalji ponudu pacijentu' for {patientName} ({patientEmail}) with appointment {selectedAppointment}.");
-            // Ovdje bi išla stvarna logika za slanje emaila/SMS-a pacijentu s ponudom termina
-            // npr. poziv EmailService.SendAppointmentOffer(patientEmail, selectedAppointment);
-
-            // Dovršavanje zadatka. Možeš prosljeđivati nove varijable ako su potrebne.
             await CompleteExternalTask(taskId, new Dictionary<string, object>
             {
-                { "offerSent", new { value = true, type = "Boolean" } } // Opcionalno: varijabla koja kaže da je ponuda poslana
+                { "offerSent", new { value = true, type = "Boolean" } }
             });
             _logger.LogInformation($"'Pošalji ponudu pacijentu' task '{taskId}' completed.");
         }
 
-        /// <summary>
-        /// Simulira logiku za ponovni odabir termina.
-        /// </summary>
         private async Task ProcessReselectAppointmentTask(string taskId, string processInstanceId, string patientName)
         {
             _logger.LogInformation($"Processing 'Ponovno predlozi termin' for {patientName}.");
-            // Ovdje možeš dodati logiku koja priprema proces za ponovni odabir termina.
-            // Npr. logiranje da je pacijent odbio, možda resetiranje nekih brojača pokušaja.
-            _logger.LogInformation($"Patient {patientName} rejected the offer. Preparing for reselection.");
-
             await CompleteExternalTask(taskId, new Dictionary<string, object>
             {
                 { "reselectionInitiated", new { value = true, type = "Boolean" } }
@@ -242,12 +224,6 @@ namespace DENTMED_API.Services
             _logger.LogInformation($"'Ponovno predlozi termin' task '{taskId}' completed.");
         }
 
-
-        // --- Pomoćne metode za komunikaciju s Camundom ---
-
-        /// <summary>
-        /// Dovršava External Task u Camundi.
-        /// </summary>
         private async Task CompleteExternalTask(string taskId, Dictionary<string, object> variablesToPass)
         {
             var payload = new
@@ -263,21 +239,15 @@ namespace DENTMED_API.Services
 
             if (response.IsSuccessStatusCode)
             {
-                // Logiranje uspješnog dovršavanja zadatka
                 _logger.LogInformation($"External Task '{taskId}' completed successfully.");
             }
             else
             {
-                // Logiranje grešaka pri dovršavanju zadatka
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError($"Failed to complete External Task '{taskId}': {response.StatusCode} - {errorContent}");
-                // Razmisli o tome što učiniti ako ne možeš dovršiti zadatak (npr. ponovni pokušaj, obavijest administratoru)
             }
         }
 
-        /// <summary>
-        /// Prijavljuje grešku za External Task u Camundi.
-        /// </summary>
         private async Task ReportFailure(string taskId, string errorMessage, string errorDetails)
         {
             var payload = new
@@ -285,8 +255,8 @@ namespace DENTMED_API.Services
                 workerId = WorkerId,
                 errorMessage = errorMessage,
                 errorDetails = errorDetails,
-                retries = 0, // Broj preostalih pokušaja za ovaj zadatak. Postavi 0 ako želiš da se odmah stavi u "failed" stanje.
-                retryTimeout = 10000 // Vrijeme u ms prije sljedećeg pokušaja (ako retries > 0)
+                retries = 0,
+                retryTimeout = 10000
             };
 
             var jsonPayload = JsonSerializer.Serialize(payload);

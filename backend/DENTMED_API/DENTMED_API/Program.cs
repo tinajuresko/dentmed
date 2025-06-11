@@ -2,6 +2,7 @@ using DENTMED_API.Contexts;
 using DENTMED_API.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers; // Dodano za MediaTypeWithQualityHeaderValue
+using DENTMED_API.Interfaces; // Dodano za IMockTerminService
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services.AddHttpClient("CamundaClient", client =>
 });
 builder.Services.AddLogging();
 builder.Services.AddHostedService<CamundaWorkerService>();
+builder.Services.AddSingleton<IMockTerminService, MockTerminService>();
 
 //CORS
 builder.Services.AddCors(options =>
