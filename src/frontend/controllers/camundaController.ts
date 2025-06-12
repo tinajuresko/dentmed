@@ -83,5 +83,31 @@ export const camundaController = {
                 throw new Error('Došlo je do neočekivane greške.');
             }
         }
+    },
+
+    // NOVO: Metoda za simulaciju potvrde pacijenta
+    async confirmPatientAppointment(patientEmail: string, isConfirmed: boolean): Promise<boolean> {
+        try {
+            const payload = {
+                patientEmail,
+                isConfirmed
+            };
+
+            const response = await axios.post(
+                camundaRoutes.confirmAppointment(), // Poziva tvoj .NET endpoint /api/camunda/confirm-appointment
+                payload
+            );
+
+            console.log(`Pacijentova ${isConfirmed ? 'potvrda' : 'odbijenica'} poslana za ${patientEmail}.`);
+            return true;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                console.error('Greška pri slanju pacijentove potvrde:', error.response?.data || error.message);
+                throw new Error(error.response?.data?.message || 'Greška pri slanju potvrde pacijenta.');
+            } else {
+                console.error('Unexpected error:', error);
+                throw new Error('Došlo je do neočekivane greške.');
+            }
+        }
     }
 };

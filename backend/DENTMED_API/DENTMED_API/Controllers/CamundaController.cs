@@ -1,13 +1,9 @@
 // Controllers/CamundaController.cs
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System; // Za Guid
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Text.Json.Serialization;
+using DENTMED_API.Services; // Dodano za CamundaWorkerService i CamundaVariable
+
 namespace DENTMED_API.Controllers
 {
     [ApiController]
@@ -18,17 +14,22 @@ namespace DENTMED_API.Controllers
         private readonly HttpClient _httpClient;
         private readonly string _camundaRestApiBaseUrl;
         private readonly ILogger<CamundaController> _logger;
+        private readonly CamundaWorkerService _camundaWorkerService; // Inject CamundaWorkerService
 
-        // Konstruktor s Dependency Injectionom za HttpClientFactory i IConfiguration
-        public CamundaController(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<CamundaController> logger)
+        // Konstruktor s Dependency Injectionom za HttpClientFactory, IConfiguration i ILogger
+        public CamundaController(
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration,
+            ILogger<CamundaController> logger,
+            CamundaWorkerService camundaWorkerService) // CamundaWorkerService u konstruktor
         {
-            // Dohvaćamo HttpClient instancu konfiguriranu s "CamundaClient"
             _httpClient = httpClientFactory.CreateClient("CamundaClient");
             _camundaRestApiBaseUrl = "http://localhost:8080/engine-rest";
             _logger = logger;
+            _camundaWorkerService = camundaWorkerService; // Inicijalizacija injectanog servisa
         }
 
-        // DTO (Data Transfer Object) za dolazne podatke
+        // DTO (Data Transfer Object) za dolazne podatke za pokretanje procesa
         public class StartProcessRequest
         {
             public string PatientName { get; set; }
@@ -38,20 +39,20 @@ namespace DENTMED_API.Controllers
         [HttpPost("startAppointmentProcess")] // Ruta će biti /api/camunda/startAppointmentProcess
         public async Task<IActionResult> StartAppointmentProcess([FromBody] StartProcessRequest request)
         {
-            // Ključ tvog BPMN procesa (iz BPMN dijagrama, Properties Panel, General -> ID)
-            var processDefinitionKey = "zakazivanje_termina"; // Koristi ID tvojeg Start Eventa ili Process Definicije
-            //var tenantId = "zakazivanje_termina";
+            var processDefinitionKey = "zakazivanje_termina"; // Ključ BPMN procesa (iz BPMN dijagrama)
+
             var payload = new
             {
-                // Varijable koje prosljeđuješ Camundi
+                // Varijable koje prosljeđujemo Camundi
                 variables = new
                 {
                     patientName = new { value = request.PatientName, type = "String" },
                     patientEmail = new { value = request.PatientEmail, type = "String" }
-
                 },
                 // Opcionalno: Business Key za lakše pronalaženje instance procesa kasnije
-                businessKey = Guid.NewGuid().ToString() // Generira jedinstveni ID za ovu instancu procesa
+                // Ako koristite patientEmail za korelaciju, možda businessKey ovdje nije strogo nužan,
+                // ali ne smeta da ostane ako ga želite koristiti za pretragu u Cockpitu.
+                businessKey = request.PatientEmail
             };
 
             var jsonPayload = JsonSerializer.Serialize(payload);
@@ -60,13 +61,11 @@ namespace DENTMED_API.Controllers
             try
             {
                 _logger.LogInformation($"Attempting to start Camunda process '{processDefinitionKey}' with payload: {jsonPayload}");
-                // Poziv Camunda REST API-ju za pokretanje procesa
                 var response = await _httpClient.PostAsync($"{_camundaRestApiBaseUrl}/process-definition/key/{processDefinitionKey}/start", content);
-                //var response = await _httpClient.PostAsync($"{_camundaRestApiBaseUrl}/process-definition/key/{processDefinitionKey}/start?tenantId={tenantId}", content);
+
                 if (response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    // Parsiraj Camunda odgovor da dobiješ ID pokrenute instance procesa
                     var camundaResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
                     var processInstanceId = camundaResponse.GetProperty("id").GetString();
                     _logger.LogInformation($"Successfully started Camunda process. Instance ID: {processInstanceId}");
@@ -75,27 +74,23 @@ namespace DENTMED_API.Controllers
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError($"FAILED to start Camunda process '{processDefinitionKey}'. Status: {response.StatusCode}. Content: {errorContent}"); // <-- AŽURIRANO DETALJNIJE LOGIRANJE
-                    // Vrati točnu grešku Reactu
-                    return StatusCode((int)response.StatusCode, new { message = $"Greška pri pokretanju procesa u Camundi: {errorContent}" }); // <-- VRAĆAMO DETALJNIJU PORUKU FRONTENDU
-
+                    _logger.LogError($"FAILED to start Camunda process '{processDefinitionKey}'. Status: {response.StatusCode}. Content: {errorContent}");
+                    return StatusCode((int)response.StatusCode, new { message = $"Greška pri pokretanju procesa u Camundi: {errorContent}" });
                 }
             }
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, $"Mrežna greška pri komunikaciji s Camundom prilikom pokretanja procesa: {ex.Message}");
-                // Hvatanje mrežnih grešaka (npr. Camunda nije pokrenuta ili je URL pogrešan)
                 return StatusCode(500, new { message = $"Mrežna greška pri komunikaciji s Camundom: {ex.Message}" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Došlo je do neočekivane greške prilikom pokretanja procesa: {ex.Message}");
-                // Hvatanje ostalih nepredviđenih grešaka
                 return StatusCode(500, new { message = $"Došlo je do neočekivane greške: {ex.Message}" });
             }
         }
 
-        // DTO za User Task
+        // DTO za User Task (već postoji)
         public class UserTaskDto
         {
             public string Id { get; set; }
@@ -104,48 +99,38 @@ namespace DENTMED_API.Controllers
             public Dictionary<string, object> Variables { get; set; } // Varijable taska
         }
 
-        // NOVI ENDPOINT: Dohvat aktivnih User Taskova za instancu procesa
-        // DENTMED_API/Controllers/CamundaController.cs
-
-        // ... (ostatak koda)
-
+        // Endpoint za dohvat aktivnih User Taskova za instancu procesa (već postoji)
         [HttpGet("user-tasks/{processInstanceId}")]
         public async Task<IActionResult> GetUserTasksByProcessInstance(string processInstanceId)
         {
             try
             {
-                // IZMIJENJENO: Koristimo GET zahtjev s Query Parametrima
-                // Formiramo URL s query parametrima za filtriranje taskova
                 var requestUrl = $"{_camundaRestApiBaseUrl}/task?processInstanceId={processInstanceId}&active=true";
                 _logger.LogInformation($"Dohvaćam korisničke zadatke s Camunde: {requestUrl}");
 
-                var response = await _httpClient.GetAsync(requestUrl); // <--- KORIŠTENJE GET metode
+                var response = await _httpClient.GetAsync(requestUrl);
 
                 if (response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
                     _logger.LogInformation($"Uspješno dohvaćeni korisnički zadaci (raw response): {responseContent}");
-                    // Camunda vraća array task objekata.
-                    var camundaTasks = JsonSerializer.Deserialize<List<JsonElement>>(responseContent); // Bolje koristiti List<JsonElement>
+                    var camundaTasks = JsonSerializer.Deserialize<List<JsonElement>>(responseContent);
 
                     var userTasks = new List<UserTaskDto>();
                     foreach (var taskElement in camundaTasks)
                     {
-                        // Provjeri da li Properties postoje prije nego što ih pokušaš dohvatiti
                         if (!taskElement.TryGetProperty("id", out JsonElement taskIdElement) ||
                             !taskElement.TryGetProperty("name", out JsonElement taskNameElement) ||
                             !taskElement.TryGetProperty("processInstanceId", out JsonElement taskProcessInstanceIdElement))
                         {
                             _logger.LogWarning("Task element ne sadrži sve potrebne property-e: id, name, processInstanceId.");
-                            continue; // Preskoči ovaj element ako nedostaju ključni podaci
+                            continue;
                         }
 
                         var taskId = taskIdElement.GetString();
                         var taskName = taskNameElement.GetString();
                         var taskProcessInstanceId = taskProcessInstanceIdElement.GetString();
 
-                        // Dohvati varijable za taj task
-                        // Ovaj dio je već bio dobar
                         var variablesResponse = await _httpClient.GetAsync($"{_camundaRestApiBaseUrl}/task/{taskId}/variables");
                         if (variablesResponse.IsSuccessStatusCode)
                         {
@@ -172,7 +157,6 @@ namespace DENTMED_API.Controllers
                                     }
                                     else
                                     {
-                                        // Generičko mapiranje ostalih varijabli
                                         mappedVariables[variable.Key] = GetValueFromJsonElement(valueElement);
                                     }
                                 }
@@ -190,7 +174,6 @@ namespace DENTMED_API.Controllers
                         {
                             var errorVariablesContent = await variablesResponse.Content.ReadAsStringAsync();
                             _logger.LogError($"Nije uspio dohvatiti varijable za zadatak {taskId}: {variablesResponse.StatusCode}. Sadržaj: {errorVariablesContent}");
-                            // Dodaj task bez varijabli ako ih ne možeš dohvatiti, da ne blokira prikaz ostalih taskova
                             userTasks.Add(new UserTaskDto
                             {
                                 Id = taskId,
@@ -217,7 +200,7 @@ namespace DENTMED_API.Controllers
             }
         }
 
-        // Pomoćna funkcija za dohvaćanje vrijednosti iz JsonElement
+        // Pomoćna funkcija za dohvaćanje vrijednosti iz JsonElement (već postoji)
         private object GetValueFromJsonElement(JsonElement element)
         {
             return element.ValueKind switch
@@ -233,25 +216,13 @@ namespace DENTMED_API.Controllers
             };
         }
 
-        //DODANO::
-        public class CamundaVariable
-        {
-            [JsonPropertyName("value")] // Koristi JsonPropertyName ako želiš drugačiji naziv propertyja u JSON-u
-            public object Value { get; set; }
-            [JsonPropertyName("type")]
-            public string Type { get; set; }
-            // Možeš dodati i ValueInfo ako ti treba, npr. za JSON varijable
-            // [JsonPropertyName("valueInfo")]
-            // public Dictionary<string, object> ValueInfo { get; set; }
-        }
+
         public class CompleteTaskRequest
         {
-            // Varijable koje dolaze od frontenda, npr. {'selectedAppointment': {value: '...', type: 'String'}}
-            //public Dictionary<string, object> Variables { get; set; }
             public Dictionary<string, CamundaVariable> Variables { get; set; }
         }
 
-        // NOVI ENDPOINT: Dovršetak User Taska
+        // Endpoint za dovršetak User Taska (već postoji)
         [HttpPost("complete-user-task/{taskId}")]
         public async Task<IActionResult> CompleteUserTask(string taskId, [FromBody] CompleteTaskRequest request)
         {
@@ -263,7 +234,6 @@ namespace DENTMED_API.Controllers
                     variables = request.Variables
                 };
 
-                //var jsonPayload = JsonSerializer.Serialize(payload);
                 var jsonPayload = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
                 var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
@@ -290,5 +260,33 @@ namespace DENTMED_API.Controllers
             }
         }
 
+        // NOVI ENDPOINT: Endpoint za potvrdu termina od strane pacijenta
+        public class AppointmentConfirmationDto
+        {
+            public string PatientEmail { get; set; }
+            public bool IsConfirmed { get; set; }
+        }
+
+        [HttpPost("confirm-appointment")]
+        public async Task<IActionResult> ConfirmAppointment([FromBody] AppointmentConfirmationDto confirmation)
+        {
+            _logger.LogInformation($"Received confirmation for patient {confirmation.PatientEmail}: {confirmation.IsConfirmed}");
+
+            try
+            {
+                // Pozivamo CorrelateMessageFromPatient iz CamundaWorkerService
+                await _camundaWorkerService.CorrelateMessageFromPatient(
+                    confirmation.PatientEmail,
+                    confirmation.IsConfirmed,
+                    HttpContext.RequestAborted); // Proslijedi CancellationToken iz HTTP konteksta
+
+                return Ok(new { Message = "Confirmation message sent to Camunda." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error correlating appointment confirmation for {confirmation.PatientEmail}.");
+                return StatusCode(500, new { Message = $"Error sending confirmation to Camunda: {ex.Message}" });
+            }
+        }
     }
 }

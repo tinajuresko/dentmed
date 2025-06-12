@@ -1,15 +1,16 @@
+// Program.cs
+
 using DENTMED_API.Contexts;
 using DENTMED_API.Services;
 using Microsoft.EntityFrameworkCore;
-using System.Net.Http.Headers; // Dodano za MediaTypeWithQualityHeaderValue
-using DENTMED_API.Interfaces; // Dodano za IMockTerminService
+using System.Net.Http.Headers;
+using DENTMED_API.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -20,14 +21,20 @@ builder.Services.AddScoped<PacijentService>();
 builder.Services.AddScoped<TerminServices>();
 builder.Services.AddScoped<DokumentacijaService>();
 builder.Services.AddScoped<RadnoVrijemeService>();
-//builder.Services.AddScoped<ZaposlenikService>();
+
 builder.Services.AddHttpClient("CamundaClient", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Camunda:RestApiBaseUrl"] ?? "http://localhost:8080/engine-rest");
     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 });
 builder.Services.AddLogging();
+
+// OVO TREBATE DODATI! Registrirajte CamundaWorkerService za DI
+builder.Services.AddSingleton<CamundaWorkerService>(); // ILI AddScoped, ovisno o životnom vijeku koji želite
+
+// OVO JE VEĆ POSTOJEĆE, SAMO GA OSTAVITE KAKO JESTE:
 builder.Services.AddHostedService<CamundaWorkerService>();
+
 builder.Services.AddSingleton<IMockTerminService, MockTerminService>();
 
 //CORS
@@ -38,10 +45,10 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod();
-        policy.WithOrigins("http://localhost:4173") // Preact default port (often used for Vite)
+        policy.WithOrigins("http://localhost:4173")
               .AllowAnyHeader()
               .AllowAnyMethod();
-        policy.WithOrigins("http://localhost:8080") // Preact default port (often used for Vite)
+        policy.WithOrigins("http://localhost:8080")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
