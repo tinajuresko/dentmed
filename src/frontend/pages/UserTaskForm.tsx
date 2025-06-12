@@ -4,7 +4,7 @@ import { camundaController } from '../controllers/camundaController';
 
 interface UserTaskFormProps {
     processInstanceId: string;
-    onNoTasksFound?: () => void; // Ovaj callback ostaje, ali ga pažljivije koristimo
+    onNoTasksFound?: () => void;
 }
 
 const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTasksFound }) => {
@@ -14,7 +14,9 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
     const [selectedTermin, setSelectedTermin] = useState<string>('');
     const [availableTermini, setAvailableTermini] = useState<string[]>([]);
     const [initialFetchDone, setInitialFetchDone] = useState(false);
-    const [isOfferSent, setIsOfferSent] = useState(false); // NOVO: Praćenje je li ponuda 'poslana' (tj. manual task dovršen)
+    // NOVO: Označava da je ponuda (jednom) poslana i da se čeka pacijentov odgovor
+    const [waitingForPatientResponse, setWaitingForPatientResponse] = useState(false); 
+    const [patientEmail, setPatientEmail] = useState<string | null>(null); // Pohrani email pacijenta
 
     const fetchTask = async () => {
         try {
@@ -27,11 +29,23 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
                 console.log("Dohvaćen task:", fetchedTask);
                 console.log("Varijable taska:", fetchedTask.variables);
 
-                // Resetiramo status ponude kada dobijemo novi task
-                if (fetchedTask.name !== 'Pošalji ponudu pacijentu') {
-                    setIsOfferSent(false); 
+                // Ažuriraj patientEmail kada se task dohvati
+                if (fetchedTask.variables?.patientEmail) {
+                    setPatientEmail(fetchedTask.variables.patientEmail);
                 }
-                
+
+                // Ako je task "Pošalji ponudu pacijentu", resetiraj waitingForPatientResponse na false
+                // jer tek treba kliknuti gumb za dovršetak tog taska
+                if (fetchedTask.name === 'Pošalji ponudu pacijentu') {
+                    setWaitingForPatientResponse(false); 
+                } else {
+                    // Ako je neki drugi task (npr. Odaberi termin, ili Ponovno predloži),
+                    // i ako smo prije čekali pacijenta, onda smo prešli dalje.
+                    // Ovo je važno da se gumbi za pacijenta ne prikazuju ako je proces već prošao taj dio.
+                    // No, u ovom slučaju, ako token dođe do event gatewaya i nema taskova, tada trebamo čekati pacijenta.
+                    // Zato je bolja opcija detekcije u else if bloku ispod.
+                }
+
                 const appointments = fetchedTask.variables?.availableAppointments;
                 if (Array.isArray(appointments)) {
                     setAvailableTermini(appointments);
@@ -43,12 +57,29 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
             } else {
                 setTask(null);
                 setAvailableTermini([]);
-                setIsOfferSent(false); // Resetiraj kada nema aktivnih taskova
+                // Ako nema aktivnih user taskova, ali je procesna instanca aktivna
+                // (tj. nismo u End Eventu), onda je vrlo vjerojatno da čekamo na Event-Based Gatewayu
+                // ili nekom Service Tasku. Za potrebe demoa, pretpostavit ćemo da je to Event-Based Gateway.
+                // Ovo je pojednostavljenje i idealno bi se trebalo potvrditi provjerom aktivnih aktivnosti
+                // putem Camunda REST API-ja (npr. GET /process-instance/{id}/activity-instances)
+                // Ali za sada, ako nema user taska, ali je proces instance aktivan, mi 'čekamo' pacijenta
+                // (ako je manual task 'Pošalji ponudu pacijentu' bio dovršen).
+                
+                // Ključno: provjeri je li procesna instanca još aktivna!
+                // Ovdje NE MOŽEMO znati samo na temelju getUserTasks().
+                // Za demo, ako 'Pošalji ponudu pacijentu' je bio zadnji user task, pretpostavljamo da čekamo.
+                // Idealno bi se ovdje trebalo provjeriti aktivnost procesa.
+                
+                // Privremeno rješenje: ako je patientEmail postavljen, a nema aktivnih user taskova,
+                // pretpostavi da čekamo pacijentov odgovor.
+                // Ovo nije robustno, ali za demo će raditi ako se tok slijedi.
+                if (patientEmail) { // Ako znamo tko je pacijent, i nema aktivnog taska, čekamo ga.
+                    setWaitingForPatientResponse(true);
+                } else {
+                    setWaitingForPatientResponse(false); // Nema taskova, i ne znamo za koga čekati.
+                }
+
                 console.log("Nema aktivnih zadataka za prikaz.");
-                // Ovdje je ključno! Pozovi onNoTasksFound tek kada je proces ZAISTA gotov
-                // Ovo se događa kada getUserTasks vrati prazan niz više puta zaredom, 
-                // ili kada proces dođe do End Eventa. Za demo, pustit ćemo roditeljsku komponentu da se brine o "završetku".
-                // UserTaskForm će samo prikazati "Nema aktivnih zadataka..."
             }
         } catch (err: any) {
             console.error('Greška pri dohvatu korisničkog zadatka:', err);
@@ -63,7 +94,7 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
         fetchTask();
         const interval = setInterval(fetchTask, 3000); // Redovito provjerava taskove
         return () => clearInterval(interval);
-    }, [processInstanceId]);
+    }, [processInstanceId, patientEmail]); // Dodan patientEmail u dependency array
 
     const handleCompleteTask = async () => {
         if (!task) {
@@ -82,54 +113,48 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
                 selectedAppointment: { value: selectedTermin, type: 'String' }
             };
         } 
-        // Za "Pošalji ponudu pacijentu" nema posebnih varijabli za slanje prilikom dovršetka manual taska
-        // jer on samo signalizira da je "ponuda poslana" (izvršena administrativna radnja).
-        // Pacijentova potvrda se šalje zasebnim API pozivom.
+        // Ako je dovršen "Pošalji ponudu pacijentu" task
+        if (task.name === 'Pošalji ponudu pacijentu') {
+            // Nema specifičnih varijabli za slanje, samo dovršavamo task
+            // Ključno: POSTAVI `waitingForPatientResponse` na true
+            setWaitingForPatientResponse(true); 
+            // setTask(null); // Ne resetiraj task odmah, neka fetchTask interval to obradi
+        } else {
+            setTask(null); // Resetiraj task nakon dovršetka, da se ponovno fetchaju
+        }
 
         try {
             await camundaController.completeUserTask(task.id, variablesToComplete);
             alert(`Zadatak '${task.name}' uspješno dovršen!`);
-            
-            // Ako je dovršen "Pošalji ponudu pacijentu" task, postavi flag
-            if (task.name === 'Pošalji ponudu pacijentu') {
-                setIsOfferSent(true);
-            } else {
-                setTask(null); // Resetiraj task nakon dovršetka, da se ponovno fetchaju
-            }
-            // Nema potrebe za direktnim pozivanjem fetchTask() ovdje, jer interval to radi svakih 3 sekunde
-            // i uhvatit će promjenu stanja procesa u Camundi
+            // Fetchaj ponovo odmah da se UI ažurira
+            fetchTask(); 
         } catch (err: any) {
             console.error('Greška pri dovršetku zadatka:', err);
             alert(`Greška pri dovršetku zadatka: ${err.message}`);
         }
     };
 
-    // NOVO: Funkcija za rukovanje pacijentovom potvrdom/odbijanjem
+    // Funkcija za rukovanje pacijentovom potvrdom/odbijanjem
     const handlePatientResponse = async (isConfirmed: boolean) => {
-        // Moramo dobiti patientEmail. On je u varijablama procesa.
-        // Npr., ako je "Pošalji ponudu pacijentu" upravo dovršen, trebali bismo imati patientEmail iz prethodnih varijabli.
-        // Najsigurnije je da ga povučemo iz stanja roditeljske komponente (AppointmentsPage) ako ga tamo držimo,
-        // ili da ga prosljeđujemo kao prop.
-        // Za demo, pretpostavimo da je `patientEmail` dostupan iz varijabli trenutnog taska ili iz nekog šireg konteksta.
-        // Trenutno `task.variables?.patientEmail` bi trebao biti dostupan ako je procesna varijabla.
-        const currentPatientEmail = task?.variables?.patientEmail; 
+        // Koristimo patientEmail iz state-a koji je postavljen kada je task Pošalji ponudu pacijentu bio aktivan
+        const currentPatientEmail = patientEmail; 
 
         if (!currentPatientEmail) {
-            alert('Nije moguće simulirati potvrdu: nedostaje pacijentov email.');
+            alert('Nije moguće simulirati potvrdu: nedostaje pacijentov email. Molimo pokrenite novi proces.');
             return;
         }
 
         try {
             await camundaController.confirmPatientAppointment(currentPatientEmail, isConfirmed);
             alert(`Pacijent je ${isConfirmed ? 'potvrdio' : 'odbio'} termin.`);
-            setIsOfferSent(false); // Resetiraj jer je pacijent reagirao
-            // Nema potrebe za direktnim pozivanjem fetchTask(), interval će uhvatiti promjenu
+            setWaitingForPatientResponse(false); // Nema više čekanja na odgovor nakon slanja poruke
+            // Fetchaj ponovo odmah da se UI ažurira
+            fetchTask(); 
         } catch (err: any) {
             console.error('Greška pri slanju pacijentove potvrde:', err);
             alert(`Greška pri slanju pacijentove potvrde: ${err.message}`);
         }
     };
-
 
     if (loading && !initialFetchDone) {
         return <div style={{ textAlign: 'center', padding: '20px' }}>Učitavanje zadataka...</div>;
@@ -139,27 +164,24 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
         return <div style={{ color: 'red', textAlign: 'center', padding: '20px' }}>Greška: {error}</div>;
     }
 
-    if (!task && initialFetchDone) {
-        // Kada nema taskova, provjerite stanje procesa
-        // Ovdje možete dodati dodatnu logiku ako je proces DOISTA završen
-        // npr. pozvati onNoTasksFound() koji bi AppointmentsPage-u rekao da je proces završen.
-        // Ali za ovaj demo, dovoljno je da komponenta prikaže poruku i čeka na novu provjeru.
+    if (!task && initialFetchDone && !waitingForPatientResponse) { // Dodana provjera `!waitingForPatientResponse`
         return <div style={{ textAlign: 'center', padding: '20px' }}>
             Nema aktivnih korisničkih zadataka za ovu instancu procesa. Proces je možda završen ili je na Service Tasku.
         </div>;
     }
 
-    if (!task && !initialFetchDone) {
-        return <div style={{ textAlign: 'center', padding: '20px' }}>Učitavanje zadataka...</div>;
+    // Prikazati loading state kada se task promijenio (npr. nakon dovršetka)
+    if (!task && loading && initialFetchDone) {
+        return <div style={{ textAlign: 'center', padding: '20px' }}>Ažuriranje statusa procesa...</div>;
     }
 
 
     return (
         <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px', maxWidth: '600px', margin: '20px auto' }}>
-            <h2>User Task: {task.name}</h2>
+            <h2>User Task: {task?.name || 'Nema aktivnog taska'}</h2> {/* Prikazati "Nema aktivnog taska" ako task=null */}
             <p>Process Instance ID: {processInstanceId}</p>
 
-            {task.name === 'Odaberi jedan od dostupnih termina' && (
+            {task?.name === 'Odaberi jedan od dostupnih termina' && (
                 <div>
                     <p>Pacijent: **{task.variables?.patientName || 'N/A'}** ({task.variables?.patientEmail || 'N/A'})</p>
                     <h3>Dostupni termini:</h3>
@@ -196,48 +218,82 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
                 </div>
             )}
 
-    {/* NOVO: LOGIKA ZA MANUAL TASK "Pošalji ponudu pacijentu" */}
-    {task.name === 'Pošalji ponudu pacijentu' && (
-        <div>
-            <p>Pacijent: **{task.variables?.patientName || 'N/A'}** ({task.variables?.patientEmail || 'N/A'})</p>
-            <p>Potvrđeni termin: **{task.variables?.selectedAppointment || 'N/A'}**</p>
+            {/* LOGIKA ZA MANUAL TASK "Pošalji ponudu pacijentu" ILI ČEKANJE NA ODGOVOR PACIJENTA */}
+            {(task?.name === 'Pošalji ponudu pacijentu' || waitingForPatientResponse) && (
+                <div>
+                    <p>Pacijent: **{patientEmail || 'N/A'}**</p> {/* Koristi patientEmail iz state-a */}
+                    {task?.name === 'Pošalji ponudu pacijentu' && (
+                        <>
+                            <p>Potvrđeni termin: **{task.variables?.selectedAppointment || 'N/A'}**</p>
+                            <p>Administrator treba poslati ponudu pacijentu. **(Kliknite ispod kad je ponuda poslana.)**</p>
+                            <button
+                                onClick={handleCompleteTask}
+                                style={{
+                                    backgroundColor: '#007bff',
+                                    color: 'white',
+                                    padding: '10px 15px',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontSize: '16px',
+                                    marginBottom: '15px'
+                                }}
+                            >
+                                Dovrši 'Pošalji ponudu pacijentu' (Admin akcija u Camundi)
+                            </button>
+                        </>
+                    )}
 
-            {/* Gumb za admina da "dovrši" slanje ponude - ovo samo pomiče proces dalje */}
-            {!isOfferSent && ( // Prikazuj samo ako ponuda još nije "poslana"
-            <>
-                <p>Administrator treba poslati ponudu pacijentu.</p>
-                <button
-                onClick={handleCompleteTask} // Ovo će postaviti isOfferSent na true
-                style={{ /* ... tvoji stilovi ... */ marginBottom: '15px' }}
-                >
-                Dovrši 'Pošalji ponudu pacijentu' (Admin akcija)
-                </button>
-            </>
+                    {/* Ovi gumbi se prikazuju ako je "Pošalji ponudu pacijentu" aktivan ILI ako čekamo na odgovor pacijenta */}
+                    {waitingForPatientResponse && ( // Prikazuj gumbe samo ako čekamo odgovor
+                        <>
+                            <p style={{ fontWeight: 'bold', color: 'green', marginTop: '20px' }}>
+                                Ponuda je poslana. Sada simulirajte pacijentov odgovor:
+                            </p>
+                            <button
+                                onClick={() => handlePatientResponse(true)}
+                                style={{
+                                    backgroundColor: '#28a745',
+                                    color: 'white',
+                                    padding: '10px 15px',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontSize: '16px',
+                                    marginRight: '10px'
+                                }}
+                            >
+                                Simuliraj Pacijentovu Potvrdu
+                            </button>
+                            <button
+                                onClick={() => handlePatientResponse(false)}
+                                style={{
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    padding: '10px 15px',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontSize: '16px'
+                                }}
+                            >
+                                Simuliraj Pacijentovo Odbijanje
+                            </button>
+                        </>
+                    )}
+                     {/* Prikazati poruku da se čeka ako su gumbi za slanje admin taska nestali, ali gumbi za pacijenta nisu još kliknuti */}
+                    {!task && waitingForPatientResponse && (
+                        <p style={{ color: 'blue', marginTop: '20px' }}>
+                            Čeka se pacijentova potvrda/odbijanje... (Imate 30 sekundi od slanja ponude).
+                        </p>
+                    )}
+                </div>
             )}
 
-         {/* Ovi gumbi trebaju biti uvijek vidljivi kada je manual task aktivan */}
-            <p style={{ fontWeight: 'bold', color: 'green', marginTop: '10px' }}>Simulirajte pacijentov odgovor:</p>
-                <button
-                onClick={() => handlePatientResponse(true)}
-                style={{ /* ... tvoji stilovi ... */ marginRight: '10px' }}
-                >
-                Simuliraj Pacijentovu Potvrdu
-                </button>
-                <button
-                onClick={() => handlePatientResponse(false)}
-                style={{ /* ... tvoji stilovi ... */ }}
-                >
-                Simuliraj Pacijentovo Odbijanje
-                </button>
-        </div>
-        )}
-
-            {task.name === 'Ponovno predloži termin' && (
+            {task?.name === 'Ponovno predloži termin' && (
                 <div>
                     <p style={{ color: 'orange', fontWeight: 'bold' }}>Pacijent je odbio termin. Molimo odaberite novi termin.</p>
                     <p>Pacijent: **{task.variables?.patientName || 'N/A'}** ({task.variables?.patientEmail || 'N/A'})</p>
-                    {/* Ovdje bi se ponovno prikazao isti UI kao za "Odaberi jedan od dostupnih termina" */}
-                    {/* Možete re-useati dio koda ili napraviti zasebnu komponentu za odabir termina */}
                     <h3>Dostupni termini:</h3>
                     {availableTermini && availableTermini.length > 0 ? (
                         <select
@@ -256,7 +312,7 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId, onNoTask
                         <p>Nema dostupnih termina za ponovno predlaganje.</p>
                     )}
                     <button
-                        onClick={handleCompleteTask} // Ovdje ćete ponovno poslati selectedAppointment
+                        onClick={handleCompleteTask}
                         style={{
                             backgroundColor: '#28a745',
                             color: 'white',
