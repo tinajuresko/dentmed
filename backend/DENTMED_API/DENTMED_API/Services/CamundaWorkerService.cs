@@ -1,7 +1,7 @@
-// Services/CamundaWorkerService.cs
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DENTMED_API.Interfaces;
 
 namespace DENTMED_API.Services
 {
@@ -22,13 +22,16 @@ namespace DENTMED_API.Services
         private readonly TimeSpan _pollingInterval;
         private readonly int _lockDuration;
 
-        public CamundaWorkerService(HttpClient httpClient, IConfiguration configuration, ILogger<CamundaWorkerService> logger)
+        private readonly IMockTerminService _mockTerminService;
+
+        public CamundaWorkerService(HttpClient httpClient, IConfiguration configuration, ILogger<CamundaWorkerService> logger, IMockTerminService mockTerminService)
         {
             _httpClient = httpClient;
             _camundaRestApiBaseUrl = configuration["Camunda:RestApiBaseUrl"] ?? "http://localhost:8080/engine-rest";
             _pollingInterval = TimeSpan.FromSeconds(int.Parse(configuration["Camunda:PollingIntervalSeconds"] ?? "5"));
             _lockDuration = int.Parse(configuration["Camunda:LockDurationMilliseconds"] ?? "10000"); // 10 sekundi
             _logger = logger;
+            _mockTerminService = mockTerminService;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -121,17 +124,18 @@ namespace DENTMED_API.Services
 
             try
             {
-                // Simulacija dohvaćanja dostupnih termina
-                var availableAppointments = new List<string>
-                {
-                    "19.06.2025 10:00 - 10:30",
-                    "19.06.2025 10:45 - 11:15",
-                    "20.06.2025 09:00 - 09:30",
-                    "20.06.2025 10:00 - 10:30",
-                    "21.06.2025 09:00 - 09:30"
-                };
+                // OVDJE hardkodiraj testne vrijednosti za mock
+                int smjenaId = 1; // npr. ID liječnika
+                var datum = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
+                int trajanje = 30;
 
-                // Pretvorba liste u JSON string za Camundu
+                var termini = await _mockTerminService.GetMockTerminBySmjenaIdAsync(smjenaId, datum, trajanje);
+
+                // Pretvori u string prikaz termina za Camundu
+                var availableAppointments = termini
+                    .Select(t => $"{t.pocetak:dd.MM.yyyy HH:mm} - {t.kraj:HH:mm}")
+                    .ToList();
+
                 var jsonAppointments = JsonSerializer.Serialize(availableAppointments);
 
                 var variables = new Dictionary<string, CamundaVariable>
