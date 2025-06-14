@@ -11,20 +11,19 @@ interface UserTask {
     id: string;
     name: string;
     processInstanceId: string;
-    // Ovdje je ključna promjena: 'Variables' je sada direktno Dictionary<string, object>
     // Frontend će primiti varijable već mapirane i parsed (npr. availableAppointments kao List<string>)
     variables: { [key: string]: any };
 }
 
-const API_BASE_URL = "http://localhost:5216"; // URL TVOJ.NET BACKENDA
+const API_BASE_URL = "http://localhost:5216"; // URL.NET BACKENDA
 // const CAMUNDA_API_BASE_URL = "http://localhost:8080/engine-rest"; // OVO VIŠE NE TREBA AKO SVE IDE PREKO .NET BACKENDA
 
 export const camundaController = {
-    // Ova metoda je već bila ok jer je išla preko .NET backenda
+    // ide preko .NET backenda
     startAppointmentProcess: async (patientName: string, patientEmail: string): Promise<StartProcessResponse | null> => {
         try {
             const response = await axios.post<StartProcessResponse>(
-                camundaRoutes.startAppointmentProcess(), // Poziva tvoj .NET endpoint /api/camunda/startAppointmentProcess
+                camundaRoutes.startAppointmentProcess(), // Poziva .NET endpoint /api/camunda/startAppointmentProcess
                 { patientName, patientEmail }
             );
             return response.data;
@@ -41,9 +40,8 @@ export const camundaController = {
 
     async getUserTasks(processInstanceId: string): Promise<UserTask[]> {
         try {
-            // SADA POZIVAMO TVOJ .NET BACKEND, ENDPOINT KOJI SI UPRAVO POSLAO
             const response = await axios.get<UserTask[]>(
-                camundaRoutes.getUserTasks(processInstanceId) // Poziva tvoj .NET endpoint /api/camunda/user-tasks/{processInstanceId}
+                camundaRoutes.getUserTasks(processInstanceId) // Poziva .NET endpoint /api/camunda/user-tasks/{processInstanceId}
             );
             const data = response.data;
 
@@ -66,9 +64,8 @@ export const camundaController = {
                 variables: variables // Varijable koje se šalju .NET backendu
             };
 
-            // SADA POZIVAMO TVOJ .NET BACKEND, ENDPOINT KOJI SI UPRAVO POSLAO
             const response = await axios.post(
-                camundaRoutes.completeUserTask(taskId), // Poziva tvoj .NET endpoint /api/camunda/complete-user-task/{taskId}
+                camundaRoutes.completeUserTask(taskId), // Poziva .NET endpoint /api/camunda/complete-user-task/{taskId}
                 payload
             );
 
@@ -85,7 +82,7 @@ export const camundaController = {
         }
     },
 
-    // NOVO: Metoda za simulaciju potvrde pacijenta
+    // Metoda za simulaciju potvrde pacijenta
     async confirmPatientAppointment(patientEmail: string, isConfirmed: boolean): Promise<boolean> {
         try {
             const payload = {
@@ -94,7 +91,7 @@ export const camundaController = {
             };
 
             const response = await axios.post(
-                camundaRoutes.confirmAppointment(), // Poziva tvoj .NET endpoint /api/camunda/confirm-appointment
+                camundaRoutes.confirmAppointment(), // Poziva .NET endpoint /api/camunda/confirm-appointment
                 payload
             );
 
@@ -109,5 +106,42 @@ export const camundaController = {
                 throw new Error('Došlo je do neočekivane greške.');
             }
         }
-    }
+    },
+
+    isProcessInstanceEnded: async (processInstanceId: string): Promise<boolean> => {
+        try {
+            // Axios response objekt ima property `data` za sadržaj, `status` za status kod, `statusText` itd.
+            const response = await axios.get<boolean>(
+                camundaRoutes.isProcessInstanceActive(processInstanceId) // Poziva .NET endpoint
+            );
+
+            if (response.status === 200) {
+                // C# endpoint vraća true ako je PROCES AKTIVAN, false ako je ZAVRŠIO/nije pronađen.
+                const isActive = response.data; // Ovo će biti true ili false
+
+                // Ako je isActive false, onda je proces završio.
+                return !isActive;
+            } else {
+                // Ako status nije 200 OK, smatramo to greškom ili da proces nije završio
+                console.error(`Unexpected HTTP status for process instance check: ${response.status}`);
+                throw new Error(`Unexpected HTTP status: ${response.status}`);
+            }
+
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                    console.error('Error checking if process instance is ended via C# proxy:', error.response.status, error.response.data);
+                    
+                    return false; // Ako dođe do greške, pretpostavljamo da proces NIJE završio.
+                } else {
+                    console.error('Network or unknown error checking process instance status:', error.message);
+                    return false; // Mrežna greška
+                }
+            } else {
+                console.error('Unexpected error checking process instance status:', error);
+                return false; // Neočekivana greška
+            }
+        }
+    },
+
 };

@@ -1,8 +1,8 @@
-// Controllers/CamundaController.cs
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using System.Text.Json;
-using DENTMED_API.Services; // Dodano za CamundaWorkerService i CamundaVariable
+using DENTMED_API.Services;
+using System.Net;
 
 namespace DENTMED_API.Controllers
 {
@@ -49,9 +49,6 @@ namespace DENTMED_API.Controllers
                     patientName = new { value = request.PatientName, type = "String" },
                     patientEmail = new { value = request.PatientEmail, type = "String" }
                 },
-                // Opcionalno: Business Key za lakše pronalaženje instance procesa kasnije
-                // Ako koristite patientEmail za korelaciju, možda businessKey ovdje nije strogo nužan,
-                // ali ne smeta da ostane ako ga želite koristiti za pretragu u Cockpitu.
                 businessKey = request.PatientEmail
             };
 
@@ -90,7 +87,7 @@ namespace DENTMED_API.Controllers
             }
         }
 
-        // DTO za User Task (već postoji)
+        // DTO za User Task
         public class UserTaskDto
         {
             public string Id { get; set; }
@@ -99,7 +96,7 @@ namespace DENTMED_API.Controllers
             public Dictionary<string, object> Variables { get; set; } // Varijable taska
         }
 
-        // Endpoint za dohvat aktivnih User Taskova za instancu procesa (već postoji)
+        // Endpoint za dohvat aktivnih User Taskova za instancu procesa 
         [HttpGet("user-tasks/{processInstanceId}")]
         public async Task<IActionResult> GetUserTasksByProcessInstance(string processInstanceId)
         {
@@ -206,7 +203,7 @@ namespace DENTMED_API.Controllers
             return element.ValueKind switch
             {
                 JsonValueKind.String => element.GetString(),
-                JsonValueKind.Number => element.GetDecimal(), // Or GetInt32, GetDouble, etc.
+                JsonValueKind.Number => element.GetDecimal(),
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
                 JsonValueKind.Null => null,
@@ -216,13 +213,12 @@ namespace DENTMED_API.Controllers
             };
         }
 
-
         public class CompleteTaskRequest
         {
             public Dictionary<string, CamundaVariable> Variables { get; set; }
         }
 
-        // Endpoint za dovršetak User Taska (već postoji)
+        // Endpoint za dovršetak User Taska 
         [HttpPost("complete-user-task/{taskId}")]
         public async Task<IActionResult> CompleteUserTask(string taskId, [FromBody] CompleteTaskRequest request)
         {
@@ -260,7 +256,7 @@ namespace DENTMED_API.Controllers
             }
         }
 
-        // NOVI ENDPOINT: Endpoint za potvrdu termina od strane pacijenta
+        // Endpoint za potvrdu termina od strane pacijenta
         public class AppointmentConfirmationDto
         {
             public string PatientEmail { get; set; }
@@ -286,6 +282,73 @@ namespace DENTMED_API.Controllers
             {
                 _logger.LogError(ex, $"Error correlating appointment confirmation for {confirmation.PatientEmail}.");
                 return StatusCode(500, new { Message = $"Error sending confirmation to Camunda: {ex.Message}" });
+            }
+        }
+
+
+        public class ProcessInstanceStatus
+        {
+            public string Id { get; set; }
+            public bool Ended { get; set; }
+            public bool Suspended { get; set; }
+        }
+
+        // Endpoint za provjeru statusa procesne instance
+
+        [HttpGet("process-instance-active/{processInstanceId}")]
+        public async Task<IActionResult> IsProcessInstanceActive(string processInstanceId)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_camundaRestApiBaseUrl}/process-instance/{processInstanceId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // PROČITAJ SADRŽAJ ODGOVORA KAO JSON
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    var processInstanceData = JsonSerializer.Deserialize<ProcessInstanceStatus>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    // Provjeri polje "Ended" iz Camunda odgovora
+                    if (processInstanceData != null && !processInstanceData.Ended)
+                    {
+                        // Ako je instanca pronađena i NIJE završena, onda je aktivna
+                        return Ok(true);
+                    }
+                    else
+                    {
+                        // Ako je instanca pronađena, ali je završena (Ended == true)
+                        // ili ako se ne može deserializirati, smatramo je neaktivnom
+                        return Ok(false);
+                    }
+                }
+                else if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    // Ako je 404 Not Found, instanca ne postoji (završena je i možda obrisana)
+                    // Stoga nije aktivna.
+                    return Ok(false);
+                }
+                else
+                {
+                    // Za ostale statuse, baci grešku
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Error checking process instance status for {processInstanceId}. Status: {response.StatusCode}. Content: {errorContent}");
+                    return StatusCode((int)response.StatusCode, $"Error checking process instance status: {errorContent}");
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, $"Network error while checking process instance status for {processInstanceId}: {ex.Message}");
+                return StatusCode(500, $"Network error while checking process instance status: {ex.Message}");
+            }
+            catch (JsonException ex) // Dodajte hvatanje greške pri deserializaciji JSON-a
+            {
+                _logger.LogError(ex, $"JSON deserialization error while checking process instance status for {processInstanceId}: {ex.Message}");
+                return StatusCode(500, $"JSON deserialization error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"An unexpected error occurred while checking process instance status for {processInstanceId}: {ex.Message}");
+                return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
             }
         }
     }

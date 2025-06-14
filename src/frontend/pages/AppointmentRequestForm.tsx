@@ -1,8 +1,6 @@
-// src/components/AppointmentRequestForm.tsx
 import React, { useState } from 'react';
-import { camundaController } from '../controllers/camundaController'; // Provjeri putanju!
+import { camundaController } from '../controllers/camundaController'; 
 
-// Definiraj tip za prop (svojstvo) koje ova komponenta prima
 interface AppointmentRequestFormProps {
     onProcessStarted: (processInstanceId: string) => void; // Funkcija koja prima processInstanceId
 }

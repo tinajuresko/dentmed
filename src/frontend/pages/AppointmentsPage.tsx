@@ -20,7 +20,6 @@ const AppointmentsPage: React.FC = () => {
     // Callback funkcija koja se poziva iz UserTaskForm kada nema aktivnih taskova
     const handleNoTasksFound = () => {
         setProcessFinished(true);
-        // Opcionalno: setProcessInstanceId(null); ako želiš da se automatski vrati na početnu formu
     };
 
     return (
@@ -35,7 +34,7 @@ const AppointmentsPage: React.FC = () => {
         }}>
             <h1 style={{ textAlign: 'center', color: '#333' }}>Zakazivanje termina</h1>
 
-            {/* Prikaži početnu formu ako proces još nije pokrenut ili je završen */}
+            {/* Prikaži početnu formu ako proces još nije pokrenut  */}
             {!processInstanceId && !processFinished && (
                 <AppointmentRequestForm onProcessStarted={handleProcessStarted} />
             )}
@@ -53,7 +52,6 @@ const AppointmentsPage: React.FC = () => {
                     </p>
                     <UserTaskForm
                         processInstanceId={processInstanceId}
-                        onNoTasksFound={handleNoTasksFound}
                     />
                 </>
             )}

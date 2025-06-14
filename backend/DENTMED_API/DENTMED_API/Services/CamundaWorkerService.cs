@@ -12,7 +12,6 @@ namespace DENTMED_API.Services
         public object Value { get; set; }
         [JsonPropertyName("type")]
         public string Type { get; set; }
-        // Property 'ValueInfo' je izbačen/zakomentiran iz ove klase
     }
 
     public class CamundaWorkerService : BackgroundService
@@ -41,8 +40,6 @@ namespace DENTMED_API.Services
                 try
                 {
                     await FetchAndLockTasks("provjera_dostupnih_termina", stoppingToken);
-                    //await FetchAndLockTasks("posalji_ponudu", stoppingToken);
-                    // Nema više workera za 'Ponovno predlozi termin'
                 }
                 catch (OperationCanceledException)
                 {
@@ -101,14 +98,6 @@ namespace DENTMED_API.Services
                         {
                             await HandleCheckAvailableAppointmentsTask(taskId, processInstanceId, task, stoppingToken);
                         }
-                        /* else if (topicName == "posalji_ponudu")
-                         {
-                             // Ako je 'Pošalji ponudu pacijentu' sada Manual Task, ova logika se NEĆE izvršavati.
-                             // Ako ga ipak želite zadržati kao Service Task, onda ovdje ide logika.
-                             // Prema vašem opisu, ovaj dio bi se trebao ukloniti ili zanemariti.
-                             _logger.LogInformation($"Manual Task 'send_offer_to_patient' encountered. It should be handled manually.");
-                             // Nema potrebe za 'complete' pozivom ovdje ako je manual task.
-                         }*/
                     }
                 }
             }
@@ -142,12 +131,11 @@ namespace DENTMED_API.Services
                     "21.06.2025 09:00 - 09:30"
                 };
 
-                // Pretvorite listu u JSON string za Camundu
+                // Pretvorba liste u JSON string za Camundu
                 var jsonAppointments = JsonSerializer.Serialize(availableAppointments);
 
                 var variables = new Dictionary<string, CamundaVariable>
                 {
-                    // ISPRAVKA: Uklonjen 'ValueInfo' jer nije definiran u CamundaVariable DTO-u
                     { "availableAppointments", new CamundaVariable { Value = jsonAppointments, Type = "String" } }
                 };
 
@@ -213,7 +201,7 @@ namespace DENTMED_API.Services
         // Metoda za korelaciju poruke od pacijenta
         public async Task CorrelateMessageFromPatient(string patientEmail, bool isConfirmed, CancellationToken cancellationToken)
         {
-            string messageName = "potvrda"; // Ovo mora odgovarati Message nameu u BPMN dijagramu
+            string messageName = "potvrda"; // odgovara Message nameu u BPMN dijagramu
 
             var processVariables = new Dictionary<string, CamundaVariable>
             {
