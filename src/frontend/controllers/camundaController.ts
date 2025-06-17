@@ -1,4 +1,3 @@
-// src/controllers/camundaController.ts
 import axios from 'axios';
 import { camundaRoutes } from '../api/routes/camundaRoutes'; // Ovo će ti trebati
 

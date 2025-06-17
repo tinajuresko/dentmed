@@ -190,7 +190,7 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId  }) => {
     if (processEnded) {
         return (
             <div style={{ textAlign: 'center', padding: '20px', color: 'green', fontWeight: 'bold' }}>
-                Proces s ID-om "{processInstanceId}" je uspješno završen.
+                Proces s ID-om "{processInstanceId}" je završen.
             </div>
         );
     }
@@ -317,43 +317,7 @@ const UserTaskForm: React.FC<UserTaskFormProps> = ({ processInstanceId  }) => {
                     </div>
                 )}
 
-                {task.name === 'Ponovno predloži termin' && (
-                    <div>
-                        <p style={{ color: 'orange', fontWeight: 'bold' }}>Pacijent je odbio termin. Molimo odaberite novi termin.</p>
-                        <p>Pacijent: **{task.variables?.patientName || 'N/A'}** ({task.variables?.patientEmail || 'N/A'})</p>
-                        <h3>Dostupni termini:</h3>
-                        {availableTermini && availableTermini.length > 0 ? (
-                            <select
-                                value={selectedTermin}
-                                onChange={(e) => setSelectedTermin(e.target.value)}
-                                style={{ width: '100%', padding: '8px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ddd' }}
-                            >
-                                <option value="">Odaberite novi termin</option>
-                                {availableTermini.map((termin: string, index: number) => (
-                                    <option key={index} value={termin}>
-                                        {termin}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <p>Nema dostupnih termina za ponovno predlaganje.</p>
-                        )}
-                        <button
-                            onClick={handleCompleteTask}
-                            style={{
-                                backgroundColor: '#28a745',
-                                color: 'white',
-                                padding: '10px 15px',
-                                border: 'none',
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                fontSize: '16px'
-                            }}
-                        >
-                            Dovrši 'Ponovno predloži termin'
-                        </button>
-                    </div>
-                )}
+                
             </div>
         );
     }

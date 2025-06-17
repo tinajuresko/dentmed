@@ -197,7 +197,7 @@ namespace DENTMED_API.Controllers
             }
         }
 
-        // Pomoćna funkcija za dohvaćanje vrijednosti iz JsonElement (već postoji)
+        // Pomoćna funkcija za dohvaćanje vrijednosti iz JsonElement 
         private object GetValueFromJsonElement(JsonElement element)
         {
             return element.ValueKind switch

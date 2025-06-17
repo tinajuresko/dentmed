@@ -124,8 +124,7 @@ namespace DENTMED_API.Services
 
             try
             {
-                // OVDJE hardkodiraj testne vrijednosti za mock
-                int smjenaId = 1; // npr. ID liječnika
+                int smjenaId = 1;
                 var datum = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
                 int trajanje = 30;
 
